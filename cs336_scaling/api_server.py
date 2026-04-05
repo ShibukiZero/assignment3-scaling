@@ -7,7 +7,12 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 
-from cs336_scaling.api_backend import BackendUnavailableError, TrainingBackend, get_training_backend
+from cs336_scaling.api_backend import (
+    BackendUnavailableError,
+    TrainingBackend,
+    TrainingOOMError,
+    get_training_backend,
+)
 from cs336_scaling.api_contract import build_training_config, validate_api_key
 from cs336_scaling.api_store import ApiStore
 
@@ -109,6 +114,8 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         try:
             result = runtime.backend.run(config)
         except BackendUnavailableError as exc:
+            raise assignment_error(503, str(exc)) from exc
+        except TrainingOOMError as exc:
             raise assignment_error(503, str(exc)) from exc
 
         runtime.store.insert_run(config, result.loss)

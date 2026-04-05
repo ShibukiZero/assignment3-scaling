@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from cs336_scaling.api_backend import BackendUnavailableError, TrainingResult
+from cs336_scaling.api_backend import BackendUnavailableError, TrainingOOMError, TrainingResult
 from cs336_scaling.api_contract import TrainingConfig
 from cs336_scaling.api_server import ApiRuntime, create_app
 
@@ -22,6 +22,11 @@ class RecordingBackend:
 class UnavailableBackend:
     def run(self, config: TrainingConfig) -> TrainingResult:
         raise BackendUnavailableError("Training backend is not configured yet.")
+
+
+class OOMBackend:
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        raise TrainingOOMError("Training run ran out of memory for this configuration.")
 
 
 def make_client(
@@ -252,6 +257,52 @@ def test_same_config_under_different_api_keys_is_billed_separately(tmp_path: Pat
     assert len(backend.calls) == 2
     assert total_a.json() == float(int(1e16))
     assert total_b.json() == float(int(1e16))
+
+
+def test_loss_returns_503_on_training_oom_without_recording_history(tmp_path: Path) -> None:
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=OOMBackend(),
+        accept_all_keys=True,
+    )
+    client = TestClient(create_app(runtime))
+
+    response = client.get("/loss", params=build_query(api_key="oom-key"))
+    history = client.get("/previous_runs", params={"api_key": "oom-key"})
+    total = client.get("/total_flops_used", params={"api_key": "oom-key"})
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": {"message": "Training run ran out of memory for this configuration."}
+    }
+    assert history.status_code == 422
+    assert total.status_code == 422
+
+
+def test_service_remains_usable_after_training_oom(tmp_path: Path) -> None:
+    class FlakyBackend:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def run(self, config: TrainingConfig) -> TrainingResult:
+            self.calls += 1
+            if self.calls == 1:
+                raise TrainingOOMError("Training run ran out of memory for this configuration.")
+            return TrainingResult(loss=4.2)
+
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=FlakyBackend(),
+        accept_all_keys=True,
+    )
+    client = TestClient(create_app(runtime))
+
+    first = client.get("/loss", params=build_query(api_key="flaky-key", train_flops=int(1e15)))
+    second = client.get("/loss", params=build_query(api_key="flaky-key", train_flops=int(3e15)))
+
+    assert first.status_code == 503
+    assert second.status_code == 200
+    assert second.json() == {"loss": 4.2, "total_flops_used": float(int(3e15))}
 
 
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:

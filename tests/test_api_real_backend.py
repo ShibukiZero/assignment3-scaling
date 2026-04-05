@@ -107,3 +107,63 @@ def test_get_training_backend_allows_explicit_mixed_precision_override(monkeypat
 
     assert isinstance(backend, TorchTrainingBackend)
     assert backend.runner.mixed_precision == "fp16"
+
+
+def test_get_training_backend_defaults_to_activation_checkpointing_on_cuda(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.delenv("CS336_ACTIVATION_CHECKPOINTING", raising=False)
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.activation_checkpointing is True
+
+
+def test_get_training_backend_allows_disabling_activation_checkpointing(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.setenv("CS336_ACTIVATION_CHECKPOINTING", "0")
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.activation_checkpointing is False
+
+
+def test_get_training_backend_defaults_to_preloading_dataset(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.delenv("CS336_PRELOAD_DATASET", raising=False)
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.preload_dataset is True
+    assert backend.runner.dataset is not None
+
+
+def test_get_training_backend_allows_disabling_dataset_preload(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_PRELOAD_DATASET", "0")
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.preload_dataset is False
+    assert backend.runner.dataset is None

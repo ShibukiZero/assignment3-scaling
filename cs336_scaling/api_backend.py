@@ -5,11 +5,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+import torch
+
 from cs336_scaling.api_contract import TrainingConfig, estimate_non_embedding_parameters, estimate_train_tokens
 from cs336_scaling.training_runner import TrainingRunner
 
 
 class BackendUnavailableError(RuntimeError):
+    pass
+
+
+class TrainingOOMError(RuntimeError):
     pass
 
 
@@ -56,6 +62,8 @@ class TorchTrainingBackend:
         context_length: int = 512,
         device: str = "cpu",
         mixed_precision: str = "off",
+        activation_checkpointing: bool = False,
+        preload_dataset: bool = True,
         max_steps_cap: int | None = None,
     ) -> None:
         self.runner = TrainingRunner(
@@ -64,11 +72,23 @@ class TorchTrainingBackend:
             context_length=context_length,
             device=device,
             mixed_precision=mixed_precision,
+            activation_checkpointing=activation_checkpointing,
+            preload_dataset=preload_dataset,
             max_steps_cap=max_steps_cap,
         )
 
     def run(self, config: TrainingConfig) -> TrainingResult:
-        result = self.runner.run(config)
+        try:
+            result = self.runner.run(config)
+        except RuntimeError as exc:
+            message = str(exc).lower()
+            if "out of memory" in message:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                raise TrainingOOMError(
+                    "Training run ran out of memory for this configuration."
+                ) from exc
+            raise
         return TrainingResult(loss=result.loss)
 
 
@@ -82,6 +102,13 @@ def get_training_backend() -> TrainingBackend:
     device = os.environ.get("CS336_DEVICE", "cpu")
     default_mixed_precision = "bf16" if device.startswith("cuda") else "off"
     mixed_precision = os.environ.get("CS336_MIXED_PRECISION", default_mixed_precision)
+    activation_checkpointing_raw = os.environ.get(
+        "CS336_ACTIVATION_CHECKPOINTING",
+        "1" if device.startswith("cuda") else "0",
+    )
+    activation_checkpointing = activation_checkpointing_raw == "1"
+    preload_dataset_raw = os.environ.get("CS336_PRELOAD_DATASET", "1")
+    preload_dataset = preload_dataset_raw == "1"
     max_steps_cap_raw = os.environ.get("CS336_MAX_STEPS_CAP")
     max_steps_cap = int(max_steps_cap_raw) if max_steps_cap_raw else None
     return TorchTrainingBackend(
@@ -90,5 +117,7 @@ def get_training_backend() -> TrainingBackend:
         context_length=context_length,
         device=device,
         mixed_precision=mixed_precision,
+        activation_checkpointing=activation_checkpointing,
+        preload_dataset=preload_dataset,
         max_steps_cap=max_steps_cap,
     )

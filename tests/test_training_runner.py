@@ -184,3 +184,64 @@ def test_training_runner_rejects_unknown_mixed_precision_mode(tmp_path: Path) ->
         assert str(exc) == "Unsupported mixed precision mode: weird"
     else:
         raise AssertionError("Expected TrainingRunner to reject unknown mixed precision modes.")
+
+
+def test_training_runner_defaults_to_disabled_activation_checkpointing_on_cpu(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cpu",
+    )
+
+    assert runner.activation_checkpointing is False
+
+
+def test_training_runner_allows_cuda_activation_checkpointing(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cuda",
+        activation_checkpointing=True,
+    )
+
+    assert runner.activation_checkpointing is True
+
+
+def test_training_runner_preloads_dataset_by_default(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cpu",
+    )
+
+    assert runner.preload_dataset is True
+    assert runner.dataset is not None
+    assert runner.dataset.num_tokens == 128
+
+
+def test_training_runner_allows_disabling_dataset_preload(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cpu",
+        preload_dataset=False,
+    )
+
+    assert runner.preload_dataset is False
+    assert runner.dataset is None

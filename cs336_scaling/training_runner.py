@@ -59,6 +59,8 @@ class TrainingRunner:
         context_length: int,
         device: str = "cpu",
         mixed_precision: str = "off",
+        activation_checkpointing: bool = False,
+        preload_dataset: bool = True,
         max_steps_cap: int | None = None,
         weight_decay: float = 0.01,
         gradient_clip: float = 1.0,
@@ -71,11 +73,18 @@ class TrainingRunner:
         self.device = torch.device(device)
         self.mixed_precision = _normalize_mixed_precision(self.device, mixed_precision)
         self.autocast_dtype = _resolve_autocast_dtype(self.mixed_precision)
+        self.activation_checkpointing = activation_checkpointing
+        self.preload_dataset = preload_dataset
         self.max_steps_cap = max_steps_cap
         self.weight_decay = weight_decay
         self.gradient_clip = gradient_clip
         self.residual_pdrop = residual_pdrop
         self.attn_pdrop = attn_pdrop
+        self.dataset = (
+            TokenizedDataset.from_meta(self.train_data_meta_path)
+            if self.preload_dataset
+            else None
+        )
 
     def _build_model(self, config: TrainingConfig) -> BasicsTransformerLM:
         model = BasicsTransformerLM(
@@ -87,6 +96,7 @@ class TrainingRunner:
             d_ff=4 * config.d_model,
             attn_pdrop=self.attn_pdrop,
             residual_pdrop=self.residual_pdrop,
+            activation_checkpointing=self.activation_checkpointing,
         )
         return model.to(self.device)
 
@@ -141,7 +151,7 @@ class TrainingRunner:
         return torch.autocast(device_type=self.device.type, dtype=self.autocast_dtype)
 
     def run(self, config: TrainingConfig) -> TrainingRunResult:
-        dataset = TokenizedDataset.from_meta(self.train_data_meta_path)
+        dataset = self.dataset or TokenizedDataset.from_meta(self.train_data_meta_path)
         if dataset.num_tokens < self.context_length + 1:
             raise ValueError("Tokenized corpus must contain at least context_length + 1 tokens.")
 
@@ -157,7 +167,7 @@ class TrainingRunner:
             weight_decay=self.weight_decay,
         )
         scheduler = self._make_scheduler(optimizer, plan.max_steps)
-        scaler = torch.cuda.amp.GradScaler(enabled=self.device.type == "cuda" and self.mixed_precision == "fp16")
+        scaler = torch.amp.GradScaler("cuda", enabled=self.device.type == "cuda" and self.mixed_precision == "fp16")
 
         final_loss = 0.0
         model.train()
