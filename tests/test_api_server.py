@@ -305,6 +305,71 @@ def test_service_remains_usable_after_training_oom(tmp_path: Path) -> None:
     assert second.json() == {"loss": 4.2, "total_flops_used": float(int(3e15))}
 
 
+def test_loss_rejects_new_queries_that_exceed_scaling_law_budget_cap(tmp_path: Path) -> None:
+    client, backend = make_client(tmp_path, loss=5.0)
+
+    first = client.get(
+        "/loss",
+        params=build_query(
+            api_key="cap-key",
+            learning_rate=1e-3,
+            train_flops=int(1e18),
+        ),
+    )
+    second = client.get(
+        "/loss",
+        params=build_query(
+            api_key="cap-key",
+            learning_rate=9e-4,
+            train_flops=int(1e18),
+        ),
+    )
+    third = client.get(
+        "/loss",
+        params=build_query(
+            api_key="cap-key",
+            learning_rate=8e-4,
+            train_flops=int(1e13),
+        ),
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert third.status_code == 422
+    assert third.json() == {
+        "detail": {
+            "message": "API key would exceed the scaling law FLOPs budget cap of 2000000000000000000: cap-key"
+        }
+    }
+    assert len(backend.calls) == 2
+
+
+def test_loss_allows_cached_queries_even_after_budget_cap_is_reached(tmp_path: Path) -> None:
+    client, backend = make_client(tmp_path, loss=8.0)
+    cached_params = build_query(
+        api_key="cap-cache-key",
+        learning_rate=1e-3,
+        train_flops=int(1e18),
+    )
+
+    first = client.get("/loss", params=cached_params)
+    second = client.get(
+        "/loss",
+        params=build_query(
+            api_key="cap-cache-key",
+            learning_rate=9e-4,
+            train_flops=int(1e18),
+        ),
+    )
+    cached_again = client.get("/loss", params=cached_params)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert cached_again.status_code == 200
+    assert cached_again.json() == {"loss": 8.0, "total_flops_used": float(int(2e18))}
+    assert len(backend.calls) == 2
+
+
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:
     client, backend = make_client(tmp_path, loss=1.5)
 

@@ -18,6 +18,7 @@ from cs336_scaling.api_store import ApiStore
 
 
 DEFAULT_DB_PATH = Path("artifacts/api/api.db")
+SCALING_LAW_FLOPS_BUDGET_CAP = int(2e18)
 
 
 def parse_allowed_keys(raw_value: str | None) -> set[str]:
@@ -60,6 +61,19 @@ class ApiRuntime:
         if api_key in self.allowed_api_keys or self.store.has_api_key(api_key):
             return api_key
         raise HTTPException(status_code=422, detail={"message": f"Invalid API key provided: {api_key}"})
+
+    def ensure_budget_available(self, api_key: str, additional_flops: int) -> None:
+        total_flops_used = self.store.get_total_flops_used(api_key) or 0
+        if total_flops_used + additional_flops > SCALING_LAW_FLOPS_BUDGET_CAP:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": (
+                        "API key would exceed the scaling law FLOPs budget cap of "
+                        f"{SCALING_LAW_FLOPS_BUDGET_CAP}: {api_key}"
+                    )
+                },
+            )
 
 
 def create_runtime_from_env() -> ApiRuntime:
@@ -110,6 +124,8 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         if cached_run is not None:
             total_flops_used = runtime.store.get_total_flops_used(resolved_api_key) or 0
             return {"loss": float(cached_run.loss), "total_flops_used": float(total_flops_used)}
+
+        runtime.ensure_budget_available(resolved_api_key, config.train_flops)
 
         try:
             result = runtime.backend.run(config)

@@ -127,6 +127,7 @@ The framework already handles:
 - parameter validation against the assignment ranges
 - caching identical queries per `api_key`
 - FLOPs accounting per `api_key`
+- the assignment-style `2e18` scaling-law FLOPs hard cap
 - persistent run history in SQLite
 
 The API now supports a real CPU-first training backend for cache misses. When the runtime
@@ -318,3 +319,11 @@ Each case writes:
 - one `*.status.txt` file with the HTTP status code
 - one `*.body.json` file with the raw response body
 - one `summary.tsv` file covering the whole suite
+
+The suite does **not** include the `2e18` hard-cap check by default, because a real backend would
+need to execute two `1e18` runs to reach the limit. If you are running against a smoke-test server
+with a very small `CS336_MAX_STEPS_CAP`, you can opt in:
+
+```sh
+INCLUDE_CAP_TESTS=1 bash scripts/run_api_smoke_suite.sh
+```

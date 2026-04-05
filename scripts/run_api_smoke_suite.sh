@@ -5,6 +5,7 @@ set -euo pipefail
 BASE_URL="${1:-http://127.0.0.1:8000}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUTDIR="${2:-.agents/logs/api_smoke_${STAMP}}"
+INCLUDE_CAP_TESTS="${INCLUDE_CAP_TESTS:-0}"
 
 mkdir -p "${OUTDIR}"
 
@@ -20,6 +21,7 @@ METADATA_TXT="${OUTDIR}/metadata.txt"
 cat > "${METADATA_TXT}" <<EOF
 base_url=${BASE_URL}
 run_id=${RUN_ID}
+include_cap_tests=${INCLUDE_CAP_TESTS}
 small_key=${SMALL_KEY}
 max128_key=${MAX128_KEY}
 max256_key=${MAX256_KEY}
@@ -138,6 +140,31 @@ run_case \
 run_case \
   "24_history_max_256" \
   "${BASE_URL}/previous_runs?api_key=${MAX256_KEY}"
+
+if [[ "${INCLUDE_CAP_TESTS}" == "1" ]]; then
+  CAP_KEY="suite-cap-${RUN_ID}"
+  printf "cap_key=%s\n" "${CAP_KEY}" >> "${METADATA_TXT}"
+
+  run_case \
+    "25_cap_first_1e18" \
+    "${BASE_URL}/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.001&train_flops=1000000000000000000&api_key=${CAP_KEY}"
+
+  run_case \
+    "26_cap_second_1e18" \
+    "${BASE_URL}/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0009&train_flops=1000000000000000000&api_key=${CAP_KEY}"
+
+  run_case \
+    "27_cap_rejected_after_limit" \
+    "${BASE_URL}/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0008&train_flops=10000000000000&api_key=${CAP_KEY}"
+
+  run_case \
+    "28_cap_total_after_rejection" \
+    "${BASE_URL}/total_flops_used?api_key=${CAP_KEY}"
+
+  run_case \
+    "29_cap_history_after_rejection" \
+    "${BASE_URL}/previous_runs?api_key=${CAP_KEY}"
+fi
 
 printf "finished_at=%s\n" "$(date -Is)" >> "${METADATA_TXT}"
 
