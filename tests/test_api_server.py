@@ -65,6 +65,100 @@ def test_loss_rejects_invalid_hyperparameter_with_assignment_style_message(tmp_p
     assert response.json() == {"detail": {"message": "d_model must be in range [64, 1024], got 9999"}}
 
 
+def test_loss_rejects_num_layers_out_of_range(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(num_layers=1))
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": {"message": "num_layers must be in range [2, 24], got 1"}}
+
+
+def test_loss_rejects_num_heads_out_of_range(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(num_heads=32))
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": {"message": "num_heads must be in range [2, 16], got 32"}}
+
+
+def test_loss_rejects_invalid_batch_size(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(batch_size=64))
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": {"message": "batch_size must be one of {128, 256}, got 64"}}
+
+
+def test_loss_rejects_learning_rate_below_range(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(learning_rate=5e-5))
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {"message": "learning_rate must be in range [0.0001, 0.001], got 5e-05"}
+    }
+
+
+def test_loss_rejects_invalid_train_flops_value(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(train_flops=int(2e16)))
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {
+            "message": "train_flops must be one of [10000000000000, 30000000000000, 60000000000000, 100000000000000, 300000000000000, 600000000000000, 1000000000000000, 3000000000000000, 6000000000000000, 10000000000000000, 30000000000000000, 60000000000000000, 100000000000000000, 300000000000000000, 600000000000000000, 1000000000000000000], got 20000000000000000"
+        }
+    }
+
+
+def test_loss_rejects_incompatible_d_model_and_num_heads(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(d_model=510, num_heads=8))
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": {"message": "d_model must be divisible by num_heads, got d_model=510 and num_heads=8"}
+    }
+
+
+def test_loss_accepts_boundary_values(tmp_path: Path) -> None:
+    client, backend = make_client(tmp_path, loss=3.21)
+
+    response = client.get(
+        "/loss",
+        params=build_query(
+            api_key="boundary-key",
+            d_model=1024,
+            num_layers=24,
+            num_heads=16,
+            batch_size=256,
+            learning_rate=1e-4,
+            train_flops=int(1e18),
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"loss": 3.21, "total_flops_used": float(int(1e18))}
+    assert len(backend.calls) == 1
+
+
+def test_loss_response_fields_are_floats(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path, loss=7.5)
+
+    response = client.get("/loss", params=build_query(api_key="float-key"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload["loss"], float)
+    assert isinstance(payload["total_flops_used"], float)
+
+
 def test_loss_uses_cache_and_does_not_double_count_flops(tmp_path: Path) -> None:
     client, backend = make_client(tmp_path, loss=6.789)
     params = build_query(api_key="cache-key", train_flops=int(3e16))
@@ -160,6 +254,29 @@ def test_same_config_under_different_api_keys_is_billed_separately(tmp_path: Pat
     assert total_b.json() == float(int(1e16))
 
 
+def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:
+    client, backend = make_client(tmp_path, loss=1.5)
+
+    first = client.get("/loss", params=build_query(api_key="sum-key", train_flops=int(1e15)))
+    second = client.get(
+        "/loss",
+        params=build_query(
+            api_key="sum-key",
+            d_model=768,
+            num_layers=12,
+            num_heads=12,
+            train_flops=int(3e15),
+        ),
+    )
+    total = client.get("/total_flops_used", params={"api_key": "sum-key"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert len(backend.calls) == 2
+    assert total.status_code == 200
+    assert total.json() == float(int(4e15))
+
+
 def test_previous_runs_preserves_query_order(tmp_path: Path) -> None:
     client, _ = make_client(tmp_path, loss=4.2)
 
@@ -200,6 +317,25 @@ def test_previous_runs_preserves_query_order(tmp_path: Path) -> None:
                 "loss": 4.2,
             },
         ]
+    }
+
+
+def test_previous_runs_rows_include_all_expected_public_fields(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path, loss=8.8)
+
+    client.get("/loss", params=build_query(api_key="fields-key"))
+    history = client.get("/previous_runs", params={"api_key": "fields-key"})
+
+    assert history.status_code == 200
+    row = history.json()["previous_runs"][0]
+    assert set(row.keys()) == {
+        "d_model",
+        "num_layers",
+        "num_heads",
+        "batch_size",
+        "learning_rate",
+        "train_flops",
+        "loss",
     }
 
 
