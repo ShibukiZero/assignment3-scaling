@@ -268,7 +268,9 @@ class TransformerBlock(nn.Module):
         # description in the paper.
         # Apply the multi-head self-attention sublayer
         x_ln = self.ln1(x)
-        causal_mask = nn.Transformer.generate_square_subsequent_mask(x.size(1))
+        causal_mask = nn.Transformer.generate_square_subsequent_mask(
+            x.size(1), device=x.device
+        )
         x_attn = self.attn(
             x_ln, x_ln, x_ln, need_weights=False, attn_mask=causal_mask, is_causal=True
         )[0]

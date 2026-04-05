@@ -129,8 +129,13 @@ The framework already handles:
 - FLOPs accounting per `api_key`
 - persistent run history in SQLite
 
-The current backend is intentionally a placeholder. Cache hits work, but cache misses return a
-clear `503` until the real training runner is wired in.
+The API now supports a real CPU-first training backend for cache misses. When the runtime
+environment is configured with a tokenized training corpus and vocabulary size, `/loss` will:
+
+- build a training plan from the assignment FLOPs budget
+- train on the tokenized training corpus
+- return the final **training loss**
+- cache the result in SQLite so repeated identical queries do not retrain
 
 ### Run the API
 
@@ -143,12 +148,39 @@ Optional environment variables:
 - `CS336_API_DB_PATH`: SQLite path for cached runs and FLOPs accounting
 - `CS336_API_ACCEPT_ALL_KEYS=1`: accept any non-empty API key (default)
 - `CS336_API_KEYS`: comma-separated allowlist when you want fixed API keys
+- `CS336_TRAIN_DATA_META_PATH`: path to `train.meta.json` for the tokenized training corpus
+- `CS336_VOCAB_SIZE`: tokenizer vocabulary size used by the model
+- `CS336_CONTEXT_LENGTH`: sequence length for training and FLOPs planning (default `512`)
+- `CS336_DEVICE`: training device, such as `cpu` or `cuda` (default `cpu`)
+- `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
 
 ### Current backend status
 
-The API contract layer is ready, but `/loss` still needs a real training backend that:
+The current mainline now supports:
 
-- maps a query config to the tokenized training corpus
-- trains for the requested `train_flops`
-- returns the final **training loss**
-- stores the result so repeated identical queries become cache hits
+- assignment-style API validation and error semantics
+- per-`api_key` SQLite caching and FLOPs accounting
+- tokenized dataset loading from `.bin/.idx/.meta.json`
+- training-budget planning from the handout approximation
+- a minimal real backend that returns final **training loss**
+
+### Example: run the real backend on CPU
+
+```sh
+CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
+CS336_VOCAB_SIZE=32000 \
+CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
+CS336_DEVICE=cpu \
+uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+```
+
+For a quick smoke test on CPU, you can also add a small step cap:
+
+```sh
+CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
+CS336_VOCAB_SIZE=32000 \
+CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
+CS336_DEVICE=cpu \
+CS336_MAX_STEPS_CAP=2 \
+uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+```

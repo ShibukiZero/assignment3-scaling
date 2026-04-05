@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from cs336_scaling.api_contract import TrainingConfig, estimate_non_embedding_parameters, estimate_train_tokens
+from cs336_scaling.training_runner import TrainingRunner
 
 
 class BackendUnavailableError(RuntimeError):
@@ -44,5 +47,43 @@ class PlaceholderTrainingBackend:
         )
 
 
+class TorchTrainingBackend:
+    def __init__(
+        self,
+        *,
+        train_data_meta_path: str | Path,
+        vocab_size: int,
+        context_length: int = 512,
+        device: str = "cpu",
+        max_steps_cap: int | None = None,
+    ) -> None:
+        self.runner = TrainingRunner(
+            train_data_meta_path=train_data_meta_path,
+            vocab_size=vocab_size,
+            context_length=context_length,
+            device=device,
+            max_steps_cap=max_steps_cap,
+        )
+
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        result = self.runner.run(config)
+        return TrainingResult(loss=result.loss)
+
+
 def get_training_backend() -> TrainingBackend:
-    return PlaceholderTrainingBackend()
+    train_data_meta_path = os.environ.get("CS336_TRAIN_DATA_META_PATH")
+    vocab_size = os.environ.get("CS336_VOCAB_SIZE")
+    if not train_data_meta_path or not vocab_size:
+        return PlaceholderTrainingBackend()
+
+    context_length = int(os.environ.get("CS336_CONTEXT_LENGTH", "512"))
+    device = os.environ.get("CS336_DEVICE", "cpu")
+    max_steps_cap_raw = os.environ.get("CS336_MAX_STEPS_CAP")
+    max_steps_cap = int(max_steps_cap_raw) if max_steps_cap_raw else None
+    return TorchTrainingBackend(
+        train_data_meta_path=train_data_meta_path,
+        vocab_size=int(vocab_size),
+        context_length=context_length,
+        device=device,
+        max_steps_cap=max_steps_cap,
+    )
