@@ -297,3 +297,24 @@ Expected behavior:
 - the second identical `/loss` request should return the same `loss` without increasing `total_flops_used`
 - `/total_flops_used` should still report `1e13`
 - `/previous_runs` should contain exactly one matching run
+
+### Batch smoke-suite script
+
+If you want to run a longer curl-based sweep and save every response to disk, use:
+
+```sh
+bash scripts/run_api_smoke_suite.sh
+```
+
+By default this writes a new timestamped directory under `.agents/logs/`, for example:
+
+```text
+.agents/logs/api_smoke_20260406-013000/
+```
+
+Each case writes:
+
+- one `*.url.txt` file with the exact request URL
+- one `*.status.txt` file with the HTTP status code
+- one `*.body.json` file with the raw response body
+- one `summary.tsv` file covering the whole suite
