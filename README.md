@@ -112,3 +112,43 @@ Rerun preprocessing only if one of these changes:
 
 If none of those change, the tokenizer artifacts and tokenized dataset are reusable across all
 later training or API-serving experiments.
+
+## Assignment API Scaffold
+
+The repository now includes an assignment-style API scaffold with the same three public endpoints
+described in the handout:
+
+- `GET /loss`
+- `GET /total_flops_used`
+- `GET /previous_runs`
+
+The framework already handles:
+
+- parameter validation against the assignment ranges
+- caching identical queries per `api_key`
+- FLOPs accounting per `api_key`
+- persistent run history in SQLite
+
+The current backend is intentionally a placeholder. Cache hits work, but cache misses return a
+clear `503` until the real training runner is wired in.
+
+### Run the API
+
+```sh
+uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+```
+
+Optional environment variables:
+
+- `CS336_API_DB_PATH`: SQLite path for cached runs and FLOPs accounting
+- `CS336_API_ACCEPT_ALL_KEYS=1`: accept any non-empty API key (default)
+- `CS336_API_KEYS`: comma-separated allowlist when you want fixed API keys
+
+### Current backend status
+
+The API contract layer is ready, but `/loss` still needs a real training backend that:
+
+- maps a query config to the tokenized training corpus
+- trains for the requested `train_flops`
+- returns the final **training loss**
+- stores the result so repeated identical queries become cache hits
