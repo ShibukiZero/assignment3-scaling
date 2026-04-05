@@ -130,13 +130,30 @@ The framework already handles:
 - the assignment-style `2e18` scaling-law FLOPs hard cap
 - persistent run history in SQLite
 
-The API now supports a real CPU-first training backend for cache misses. When the runtime
-environment is configured with a tokenized training corpus and vocabulary size, `/loss` will:
+The API now supports a real training backend for cache misses. When the runtime environment is
+configured with a tokenized training corpus and vocabulary size, `/loss` will:
 
 - build a training plan from the assignment FLOPs budget
 - train on the tokenized training corpus
 - return the final **training loss**
 - cache the result in SQLite so repeated identical queries do not retrain
+
+### What this replica matches
+
+- endpoint names and main request parameters from the handout
+- training-loss semantics for `/loss`
+- repeated-query caching semantics
+- per-`api_key` FLOPs accounting
+- the `2e18` scaling-law budget cap
+- `404` for invalid hyperparameters and `422` for missing history
+
+### What still differs from the official handout API
+
+- this local replica trains on the local tokenized corpus, not the hidden official backend
+- by default it accepts any non-empty API key unless allowlist mode is enabled
+- error bodies still use FastAPI's `{"detail": {"message": ...}}` wrapper instead of a bare
+  `{"message": ...}` object
+- the local training data and tokenizer are not the official SlimPajama-based artifacts
 
 ### Run the API
 
@@ -171,6 +188,16 @@ Optional environment variables:
 - `CS336_PRELOAD_DATASET`: `1` to preload the tokenized corpus into RAM on startup, `0` to lazy-load it per request
 - `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
 
+### Runtime defaults
+
+When you start the service with `./scripts/start_api.sh`, the current defaults are:
+
+- prefer `cuda` if a visible GPU exists, otherwise use `cpu`
+- use `bf16` automatically on CUDA runs
+- enable activation checkpointing automatically on CUDA runs
+- preload the tokenized dataset into RAM on startup
+- accept any non-empty API key unless allowlist mode is enabled
+
 ### Current backend status
 
 The current mainline now supports:
@@ -181,6 +208,14 @@ The current mainline now supports:
 - training-budget planning from the handout approximation
 - a minimal real backend that returns final **training loss**
 - graceful request-level OOM handling so a single oversized query does not crash the whole service
+
+The current GPU path has been smoke-tested on the largest handout-legal configuration:
+
+- `d_model=1024`
+- `num_layers=24`
+- `num_heads=16`
+- `batch_size=128`
+- `batch_size=256`
 
 ### Example: run the real backend on CPU
 
@@ -271,6 +306,16 @@ startup and reuses it across requests:
 CS336_PRELOAD_DATASET=0 ./scripts/start_api.sh
 ```
 
+### Reset the local API database
+
+If you want to clear local run history and FLOPs accounting, remove the SQLite file and restart the
+service:
+
+```sh
+rm -f /root/autodl-tmp/api/api.db
+bash scripts/start_api.sh
+```
+
 ### Example: smoke-test the API with curl
 
 Start the server in one terminal, then issue these requests from another terminal:
@@ -326,4 +371,25 @@ with a very small `CS336_MAX_STEPS_CAP`, you can opt in:
 
 ```sh
 INCLUDE_CAP_TESTS=1 bash scripts/run_api_smoke_suite.sh
+```
+
+### Recommended overnight workflow
+
+1. Start the service:
+
+```sh
+bash scripts/start_api.sh
+```
+
+2. Run the saved curl sweep in another terminal:
+
+```sh
+bash scripts/run_api_smoke_suite.sh
+```
+
+3. In the morning, inspect:
+
+```sh
+cat .agents/logs/api_smoke_*/summary.tsv
+cat .agents/logs/api_smoke_*/metadata.txt
 ```
