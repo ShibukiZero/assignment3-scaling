@@ -85,43 +85,20 @@ Outputs:
 After the tokenizer is fixed, you usually encode the corpus once and reuse the token IDs for all
 training runs.
 
-Before encoding, create a deterministic document-level train/eval split. A `0.5%` eval split is
-usually enough for a large web corpus.
-
 ```sh
-uv run python -m cs336_scaling.split_corpus \
+uv run python -m cs336_scaling.encode_dataset \
   --input /root/autodl-tmp/fineweb-edu \
-  --train-output /root/autodl-tmp/splits/fineweb_edu_train.jsonl \
-  --eval-output /root/autodl-tmp/splits/fineweb_edu_eval.jsonl \
-  --text-key text \
-  --eval-ratio 0.005 \
-  --seed 1337
-```
-
-Then encode each split separately:
-
-```sh
-uv run python -m cs336_scaling.encode_dataset \
-  --input /root/autodl-tmp/splits/fineweb_edu_train.jsonl \
   --tokenizer /root/autodl-tmp/tokenizer/fineweb_edu_32k/tokenizer.json \
-  --output-prefix /root/autodl-tmp/tokids/fineweb_edu/train \
-  --text-key text \
-  --append-eod
-```
-
-```sh
-uv run python -m cs336_scaling.encode_dataset \
-  --input /root/autodl-tmp/splits/fineweb_edu_eval.jsonl \
-  --tokenizer /root/autodl-tmp/tokenizer/fineweb_edu_32k/tokenizer.json \
-  --output-prefix /root/autodl-tmp/tokids/fineweb_edu/eval \
+  --output-prefix /root/autodl-tmp/tokids/fineweb_edu_full/train \
   --text-key text \
   --append-eod
 ```
 
 Outputs:
 
-- `train.bin` / `train.idx` / `train.meta.json`
-- `eval.bin` / `eval.idx` / `eval.meta.json`
+- `train.bin`
+- `train.idx`
+- `train.meta.json`
 
 ### When you need to rerun preprocessing
 

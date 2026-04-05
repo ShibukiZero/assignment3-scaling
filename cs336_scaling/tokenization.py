@@ -53,16 +53,6 @@ class SamplingStats:
     sample_ratio: float
 
 
-@dataclass(frozen=True)
-class SplitStats:
-    num_files: int
-    num_input_documents: int
-    num_train_documents: int
-    num_eval_documents: int
-    train_utf8_bytes: int
-    eval_utf8_bytes: int
-
-
 def log_progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
@@ -303,15 +293,6 @@ def score_document(seed: int, doc_index: int) -> float:
     return integer / 2**64
 
 
-def score_text(seed: int, text: str) -> float:
-    hasher = hashlib.blake2b(digest_size=8)
-    hasher.update(str(seed).encode("utf-8"))
-    hasher.update(b"\0")
-    hasher.update(text.encode("utf-8"))
-    integer = int.from_bytes(hasher.digest(), byteorder="big", signed=False)
-    return integer / 2**64
-
-
 def sample_corpus_to_jsonl(
     input_path: str | Path,
     output_path: str | Path,
@@ -399,84 +380,6 @@ def sample_corpus_to_jsonl(
         total_input_utf8_bytes=corpus_stats.total_utf8_bytes,
         total_output_utf8_bytes=written_utf8_bytes,
         sample_ratio=sample_ratio,
-    )
-
-
-def split_corpus_to_jsonl(
-    input_path: str | Path,
-    train_output_path: str | Path,
-    eval_output_path: str | Path,
-    *,
-    eval_ratio: float,
-    seed: int = 0,
-    text_key: str = DEFAULT_TEXT_KEY,
-    parquet_batch_size: int = DEFAULT_PARQUET_BATCH_SIZE,
-    progress_interval_docs: int = DEFAULT_PROGRESS_INTERVAL_DOCS,
-) -> SplitStats:
-    if not 0.0 < eval_ratio < 1.0:
-        raise ValueError(f"eval_ratio must be in (0, 1), got {eval_ratio}.")
-
-    files = discover_corpus_files(input_path)
-    train_output = Path(train_output_path).expanduser()
-    eval_output = Path(eval_output_path).expanduser()
-    train_output.parent.mkdir(parents=True, exist_ok=True)
-    eval_output.parent.mkdir(parents=True, exist_ok=True)
-
-    num_input_documents = 0
-    num_train_documents = 0
-    num_eval_documents = 0
-    train_utf8_bytes = 0
-    eval_utf8_bytes = 0
-    started_at = time.time()
-
-    log_progress(
-        f"[split_corpus] splitting {len(files)} input files from {Path(input_path).expanduser()} "
-        f"into train/eval with eval_ratio={eval_ratio:.4f}"
-    )
-
-    with train_output.open("w", encoding="utf-8") as train_handle, eval_output.open(
-        "w", encoding="utf-8"
-    ) as eval_handle:
-        for text in iter_corpus_texts(
-            input_path,
-            text_key=text_key,
-            parquet_batch_size=parquet_batch_size,
-        ):
-            num_input_documents += 1
-            utf8_bytes = len(text.encode("utf-8"))
-            record = json.dumps({text_key: text}, ensure_ascii=False)
-
-            if score_text(seed, text) < eval_ratio:
-                eval_handle.write(record)
-                eval_handle.write("\n")
-                num_eval_documents += 1
-                eval_utf8_bytes += utf8_bytes
-            else:
-                train_handle.write(record)
-                train_handle.write("\n")
-                num_train_documents += 1
-                train_utf8_bytes += utf8_bytes
-
-            if progress_interval_docs > 0 and num_input_documents % progress_interval_docs == 0:
-                elapsed = time.time() - started_at
-                log_progress(
-                    f"[split_corpus] processed {num_input_documents:,} docs in {elapsed:.1f}s "
-                    f"(train {num_train_documents:,}, eval {num_eval_documents:,})"
-                )
-
-    elapsed = time.time() - started_at
-    log_progress(
-        f"[split_corpus] complete: train {num_train_documents:,} docs / {format_gib(train_utf8_bytes)}, "
-        f"eval {num_eval_documents:,} docs / {format_gib(eval_utf8_bytes)} in {elapsed:.1f}s"
-    )
-
-    return SplitStats(
-        num_files=len(files),
-        num_input_documents=num_input_documents,
-        num_train_documents=num_train_documents,
-        num_eval_documents=num_eval_documents,
-        train_utf8_bytes=train_utf8_bytes,
-        eval_utf8_bytes=eval_utf8_bytes,
     )
 
 
