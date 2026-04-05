@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import random
+from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -30,6 +31,25 @@ def _stable_seed(config: TrainingConfig) -> int:
     return int.from_bytes(hashlib.blake2b(payload, digest_size=8).digest(), "big")
 
 
+def _normalize_mixed_precision(device: torch.device, mixed_precision: str) -> str:
+    normalized = mixed_precision.strip().lower()
+    if normalized not in {"off", "bf16", "fp16"}:
+        raise ValueError(f"Unsupported mixed precision mode: {mixed_precision}")
+    if device.type != "cuda":
+        return "off"
+    return normalized
+
+
+def _resolve_autocast_dtype(mixed_precision: str) -> torch.dtype | None:
+    if mixed_precision == "off":
+        return None
+    if mixed_precision == "bf16":
+        return torch.bfloat16
+    if mixed_precision == "fp16":
+        return torch.float16
+    raise ValueError(f"Unsupported mixed precision mode: {mixed_precision}")
+
+
 class TrainingRunner:
     def __init__(
         self,
@@ -38,6 +58,7 @@ class TrainingRunner:
         vocab_size: int,
         context_length: int,
         device: str = "cpu",
+        mixed_precision: str = "off",
         max_steps_cap: int | None = None,
         weight_decay: float = 0.01,
         gradient_clip: float = 1.0,
@@ -48,6 +69,8 @@ class TrainingRunner:
         self.vocab_size = vocab_size
         self.context_length = context_length
         self.device = torch.device(device)
+        self.mixed_precision = _normalize_mixed_precision(self.device, mixed_precision)
+        self.autocast_dtype = _resolve_autocast_dtype(self.mixed_precision)
         self.max_steps_cap = max_steps_cap
         self.weight_decay = weight_decay
         self.gradient_clip = gradient_clip
@@ -112,6 +135,11 @@ class TrainingRunner:
 
         return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
+    def _autocast_context(self):
+        if self.autocast_dtype is None:
+            return nullcontext()
+        return torch.autocast(device_type=self.device.type, dtype=self.autocast_dtype)
+
     def run(self, config: TrainingConfig) -> TrainingRunResult:
         dataset = TokenizedDataset.from_meta(self.train_data_meta_path)
         if dataset.num_tokens < self.context_length + 1:
@@ -129,6 +157,7 @@ class TrainingRunner:
             weight_decay=self.weight_decay,
         )
         scheduler = self._make_scheduler(optimizer, plan.max_steps)
+        scaler = torch.cuda.amp.GradScaler(enabled=self.device.type == "cuda" and self.mixed_precision == "fp16")
 
         final_loss = 0.0
         model.train()
@@ -140,13 +169,23 @@ class TrainingRunner:
                 context_length=self.context_length,
                 rng=rng,
             )
-            logits = model(x)
-            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
-
             optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
-            optimizer.step()
+
+            with self._autocast_context():
+                logits = model(x)
+                loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
+
+            if scaler.is_enabled():
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                optimizer.step()
+
             scheduler.step()
             final_loss = float(loss.detach().item())
 

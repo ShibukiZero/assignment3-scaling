@@ -143,6 +143,12 @@ environment is configured with a tokenized training corpus and vocabulary size, 
 uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
 ```
 
+You can also use the helper script:
+
+```sh
+./scripts/start_api.sh cpu
+```
+
 Optional environment variables:
 
 - `CS336_API_DB_PATH`: SQLite path for cached runs and FLOPs accounting
@@ -152,6 +158,7 @@ Optional environment variables:
 - `CS336_VOCAB_SIZE`: tokenizer vocabulary size used by the model
 - `CS336_CONTEXT_LENGTH`: sequence length for training and FLOPs planning (default `512`)
 - `CS336_DEVICE`: training device, such as `cpu` or `cuda` (default `cpu`)
+- `CS336_MIXED_PRECISION`: mixed precision mode, one of `off`, `bf16`, or `fp16`
 - `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
 
 ### Current backend status
@@ -174,6 +181,12 @@ CS336_DEVICE=cpu \
 uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
 ```
 
+Equivalent helper-script command:
+
+```sh
+./scripts/start_api.sh cpu
+```
+
 For a quick smoke test on CPU, you can also add a small step cap:
 
 ```sh
@@ -184,3 +197,78 @@ CS336_DEVICE=cpu \
 CS336_MAX_STEPS_CAP=2 \
 uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
 ```
+
+Equivalent helper-script command:
+
+```sh
+CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh cpu
+```
+
+### Example: run the real backend on GPU
+
+```sh
+CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
+CS336_VOCAB_SIZE=32000 \
+CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
+CS336_DEVICE=cuda \
+uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+```
+
+Equivalent helper-script command:
+
+```sh
+./scripts/start_api.sh cuda
+```
+
+For an initial GPU smoke test, it is still a good idea to keep a very small cap:
+
+```sh
+CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
+CS336_VOCAB_SIZE=32000 \
+CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
+CS336_DEVICE=cuda \
+CS336_MAX_STEPS_CAP=2 \
+uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+```
+
+Equivalent helper-script command:
+
+```sh
+CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh cuda
+```
+
+By default, the backend uses `bf16` whenever `CS336_DEVICE` starts with `cuda`. You can override
+that explicitly if needed:
+
+```sh
+CS336_MIXED_PRECISION=fp16 ./scripts/start_api.sh cuda
+CS336_MIXED_PRECISION=off ./scripts/start_api.sh cuda
+```
+
+### Example: smoke-test the API with curl
+
+Start the server in one terminal, then issue these requests from another terminal:
+
+```sh
+curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
+```
+
+Repeat the same query to confirm the cache behavior:
+
+```sh
+curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
+```
+
+Then verify FLOPs accounting and run history:
+
+```sh
+curl "http://127.0.0.1:8000/total_flops_used?api_key=test-key"
+curl "http://127.0.0.1:8000/previous_runs?api_key=test-key"
+```
+
+Expected behavior:
+
+- the first `/loss` request should return a float `loss` and `total_flops_used=1e13`
+- the second identical `/loss` request should return the same `loss` without increasing `total_flops_used`
+- `/total_flops_used` should still report `1e13`
+- `/previous_runs` should contain exactly one matching run

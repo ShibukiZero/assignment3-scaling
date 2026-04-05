@@ -4,6 +4,8 @@ import json
 from array import array
 from pathlib import Path
 
+import torch
+
 from cs336_scaling.api_contract import TrainingConfig
 
 
@@ -116,3 +118,69 @@ def test_training_runner_raises_when_corpus_is_too_short_for_context(tmp_path: P
         assert str(exc) == "Tokenized corpus must contain at least context_length + 1 tokens."
     else:
         raise AssertionError("Expected TrainingRunner to reject too-short tokenized corpora.")
+
+
+def test_training_runner_defaults_to_disabled_mixed_precision_on_cpu(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cpu",
+    )
+
+    assert runner.mixed_precision == "off"
+    assert runner.autocast_dtype is None
+
+
+def test_training_runner_resolves_cuda_bf16_mixed_precision(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cuda",
+        mixed_precision="bf16",
+    )
+
+    assert runner.mixed_precision == "bf16"
+    assert runner.autocast_dtype == torch.bfloat16
+
+
+def test_training_runner_resolves_cuda_fp16_mixed_precision(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cuda",
+        mixed_precision="fp16",
+    )
+
+    assert runner.mixed_precision == "fp16"
+    assert runner.autocast_dtype == torch.float16
+
+
+def test_training_runner_rejects_unknown_mixed_precision_mode(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+
+    try:
+        TrainingRunner(
+            train_data_meta_path=meta_path,
+            vocab_size=32,
+            context_length=4,
+            device="cuda",
+            mixed_precision="weird",
+        )
+    except ValueError as exc:
+        assert str(exc) == "Unsupported mixed precision mode: weird"
+    else:
+        raise AssertionError("Expected TrainingRunner to reject unknown mixed precision modes.")

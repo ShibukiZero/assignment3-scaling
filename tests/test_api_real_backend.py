@@ -77,3 +77,33 @@ def test_real_backend_cache_miss_trains_and_cache_hit_reuses_result(tmp_path: Pa
     assert len(history.json()["previous_runs"]) == 1
     assert total.status_code == 200
     assert total.json() == float(int(1e13))
+
+
+def test_get_training_backend_defaults_to_bf16_on_cuda(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.delenv("CS336_MIXED_PRECISION", raising=False)
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.mixed_precision == "bf16"
+
+
+def test_get_training_backend_allows_explicit_mixed_precision_override(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.setenv("CS336_MIXED_PRECISION", "fp16")
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.mixed_precision == "fp16"

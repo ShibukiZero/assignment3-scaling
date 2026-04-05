@@ -55,6 +55,7 @@ class TorchTrainingBackend:
         vocab_size: int,
         context_length: int = 512,
         device: str = "cpu",
+        mixed_precision: str = "off",
         max_steps_cap: int | None = None,
     ) -> None:
         self.runner = TrainingRunner(
@@ -62,6 +63,7 @@ class TorchTrainingBackend:
             vocab_size=vocab_size,
             context_length=context_length,
             device=device,
+            mixed_precision=mixed_precision,
             max_steps_cap=max_steps_cap,
         )
 
@@ -78,6 +80,8 @@ def get_training_backend() -> TrainingBackend:
 
     context_length = int(os.environ.get("CS336_CONTEXT_LENGTH", "512"))
     device = os.environ.get("CS336_DEVICE", "cpu")
+    default_mixed_precision = "bf16" if device.startswith("cuda") else "off"
+    mixed_precision = os.environ.get("CS336_MIXED_PRECISION", default_mixed_precision)
     max_steps_cap_raw = os.environ.get("CS336_MAX_STEPS_CAP")
     max_steps_cap = int(max_steps_cap_raw) if max_steps_cap_raw else None
     return TorchTrainingBackend(
@@ -85,5 +89,6 @@ def get_training_backend() -> TrainingBackend:
         vocab_size=int(vocab_size),
         context_length=context_length,
         device=device,
+        mixed_precision=mixed_precision,
         max_steps_cap=max_steps_cap,
     )
