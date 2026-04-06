@@ -1,8 +1,11 @@
 {
   "experiment_id": "3_1_1_shape_lr_sweep",
   "base_url": "http://hyperturing.stanford.edu:8000",
-  "api_key_env": "CS336_API_KEY",
+  "api_key": "cs336_assignment3_fixed_key",
   "endpoint": "/loss",
+  "client": {
+    "max_inflight": 0
+  },
   "shared_params": {
     "batch_size": 128,
     "train_flops": 10000000000000000

@@ -9,6 +9,12 @@
   - target parameter scale `N_anchor` near `2.5e7`
   - `batch_size = 128`
   - `train_flops = 1e16`
+  - client submission mode:
+    - bounded concurrency
+    - detect local GPU count at launch time
+    - use the detected GPU count as `max_inflight`
+  - fixed experiment API key:
+    - `cs336_assignment3_fixed_key`
   - compare candidate shapes by sweeping `learning_rate`
 - Candidate shapes:
   - `d_model=384, num_layers=14, num_heads=6`
@@ -25,4 +31,4 @@
   - `5 * 4 * 1e16 = 2e17` FLOPs
 - Grid file:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
-- Final outputs for this experiment should be stored directly in this directory.
+- The runner writes `results.json` directly into this directory by default.

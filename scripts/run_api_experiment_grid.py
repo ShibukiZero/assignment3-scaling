@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import itertools
 import json
 import os
+import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
 import requests
+
+DEFAULT_EXPERIMENT_API_KEY = "cs336_assignment3_fixed_key"
 
 
 @dataclass(frozen=True)
@@ -29,8 +34,8 @@ class Axis:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Expand a Chapter 3 experiment grid JSON, query the training API sequentially, "
-            "and write a compact JSON results file under .agents/logs/<experiment_id>/."
+            "Expand a Chapter 3 experiment grid JSON, query the training API with bounded concurrency, "
+            "and write a compact JSON results file into the matching experiment artifact directory."
         )
     )
     parser.add_argument(
@@ -45,12 +50,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--api-key",
         default=None,
-        help="Optional API key override. If omitted, the script reads the env var named in the grid JSON.",
+        help="Optional API key override. Defaults to the fixed experiment API key in this script.",
     )
     parser.add_argument(
-        "--output-root",
-        default=".agents/logs",
-        help="Root directory where experiment result directories will be created.",
+        "--output-dir",
+        default=None,
+        help="Optional output directory override. Defaults to the directory that contains the grid JSON file.",
+    )
+    parser.add_argument(
+        "--max-inflight",
+        type=int,
+        default=None,
+        help="Optional client concurrency override. Defaults to the detected local GPU count.",
     )
     return parser
 
@@ -130,6 +141,65 @@ def run_request(*, base_url: str, request_plan: dict[str, Any]) -> dict[str, Any
     }
 
 
+def detect_local_gpu_count() -> int:
+    cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if cuda_visible_devices is not None and cuda_visible_devices.strip() != "":
+        tokens = [token.strip() for token in cuda_visible_devices.split(",") if token.strip()]
+        if tokens:
+            return len(tokens)
+
+    try:
+        completed = subprocess.run(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return 1
+
+    gpu_lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+    return len(gpu_lines) if gpu_lines else 1
+
+
+def run_requests_bounded(
+    *,
+    base_url: str,
+    requests_plan: list[dict[str, Any]],
+    max_inflight: int,
+) -> list[dict[str, Any]]:
+    if max_inflight <= 1:
+        return [run_request(base_url=base_url, request_plan=request_plan) for request_plan in requests_plan]
+
+    responses_by_id: dict[str, dict[str, Any]] = {}
+    next_index = 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_inflight) as executor:
+        inflight: dict[concurrent.futures.Future[dict[str, Any]], dict[str, Any]] = {}
+
+        while next_index < len(requests_plan) or inflight:
+            while next_index < len(requests_plan) and len(inflight) < max_inflight:
+                request_plan = requests_plan[next_index]
+                future = executor.submit(run_request, base_url=base_url, request_plan=request_plan)
+                inflight[future] = request_plan
+                next_index += 1
+
+            if not inflight:
+                time.sleep(1.0)
+                continue
+
+            done, _ = concurrent.futures.wait(
+                list(inflight.keys()),
+                return_when=concurrent.futures.FIRST_COMPLETED,
+                timeout=1.0,
+            )
+            for future in done:
+                request_plan = inflight.pop(future)
+                responses_by_id[request_plan["request_id"]] = future.result()
+
+        return [responses_by_id[request_plan["request_id"]] for request_plan in requests_plan]
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -139,18 +209,20 @@ def main() -> None:
 
     experiment_id = str(raw_config["experiment_id"])
     base_url = args.base_url or str(raw_config["base_url"])
-    api_key = args.api_key
-    if api_key is None:
-        api_key_env = str(raw_config.get("api_key_env", "CS336_API_KEY"))
-        api_key = os.environ.get(api_key_env)
-        if not api_key:
-            raise ValueError(
-                f"No API key provided. Set --api-key or export the env var {api_key_env}."
-            )
+    api_key = args.api_key or str(raw_config.get("api_key", DEFAULT_EXPERIMENT_API_KEY))
 
     endpoint = str(raw_config.get("endpoint", "/loss"))
     shared_params = dict(raw_config.get("shared_params", {}))
     axes = load_axes(list(raw_config["axes"]))
+    client_config = dict(raw_config.get("client", {}))
+    detected_gpu_count = detect_local_gpu_count()
+    configured_max_inflight = client_config.get("max_inflight")
+    if args.max_inflight is not None:
+        max_inflight = args.max_inflight
+    elif configured_max_inflight is None or int(configured_max_inflight) <= 0:
+        max_inflight = detected_gpu_count
+    else:
+        max_inflight = int(configured_max_inflight)
 
     requests_plan = expand_requests(
         experiment_id=experiment_id,
@@ -160,16 +232,25 @@ def main() -> None:
         api_key=api_key,
     )
 
-    output_dir = Path(args.output_root) / experiment_id
+    output_dir = Path(args.output_dir) if args.output_dir is not None else config_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.json"
 
-    responses = [run_request(base_url=base_url, request_plan=request_plan) for request_plan in requests_plan]
+    responses = run_requests_bounded(
+        base_url=base_url,
+        requests_plan=requests_plan,
+        max_inflight=max_inflight,
+    )
 
     payload = {
         "experiment_id": experiment_id,
         "grid_config_path": str(config_path),
         "base_url": base_url,
+        "api_key": api_key,
+        "client": {
+            "detected_local_gpu_count": detected_gpu_count,
+            "max_inflight": max_inflight,
+        },
         "num_requests": len(requests_plan),
         "request_plan": [
             {
@@ -190,6 +271,8 @@ def main() -> None:
 
     print(f"Experiment finished: {experiment_id}")
     print(f"Requests sent: {len(requests_plan)}")
+    print(f"Detected local GPU count: {detected_gpu_count}")
+    print(f"Client max_inflight: {max_inflight}")
     print(f"Results path: {results_path}")
 
 

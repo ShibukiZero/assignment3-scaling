@@ -22,8 +22,14 @@ This file is the working log for Chapter 3 experiments only.
 - Config:
   - target parameter scale `N_anchor` near `2.5e7`
   - fixed `batch_size = 128`
-  - compare candidate shapes by sweeping `learning_rate`
   - fixed `train_flops = 1e16`
+  - client submission mode:
+    - bounded concurrency
+    - detect local GPU count at launch time
+    - use the detected GPU count as `max_inflight`
+  - fixed experiment API key:
+    - `cs336_assignment3_fixed_key`
+  - compare candidate shapes by sweeping `learning_rate`
   - candidate shapes:
     - `d_model=384, num_layers=14, num_heads=6`
     - `d_model=512, num_layers=8, num_heads=8`
@@ -39,6 +45,8 @@ This file is the working log for Chapter 3 experiments only.
   - we want a first shape comparison at fixed parameter scale
   - we want each candidate shape to get a fair LR sweep before we compare losses
   - we do not want to spend early budget on scanning both batch sizes
+  - the backend already has a multi-worker queue, so sequential submission would underuse multi-GPU capacity
+  - we want experiment results to land directly in the matching artifact directory instead of `.agents/logs`
 - Output directory:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/`
 - Current status:
