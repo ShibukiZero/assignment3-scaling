@@ -6,7 +6,7 @@
   "client": {
     "detected_local_gpu_count": 2,
     "max_inflight": 2,
-    "request_timeout_s": 3600.0
+    "request_timeout_s": null
   },
   "num_requests": 7,
   "request_plan": [
@@ -135,7 +135,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=256&num_layers=2&num_heads=4&learning_rate=0.001&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 5.212776184082031,
-        "total_flops_used": 7.81e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -157,7 +157,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=384&num_layers=3&num_heads=6&learning_rate=0.001&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 5.477091312408447,
-        "total_flops_used": 7.63e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -179,7 +179,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=512&num_layers=4&num_heads=8&learning_rate=0.001&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 5.851489067077637,
-        "total_flops_used": 7.66e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -201,7 +201,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=640&num_layers=5&num_heads=10&learning_rate=0.001&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 6.236567497253418,
-        "total_flops_used": 7.69e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -223,7 +223,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.0009&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 6.598958969116211,
-        "total_flops_used": 7.72e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -245,7 +245,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.0007&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 6.807224273681641,
-        "total_flops_used": 7.75e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     },
@@ -267,7 +267,7 @@
       "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=3000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.0006&api_key=cs336_assignment3_fixed_key",
       "body_json": {
         "loss": 7.046400547027588,
-        "total_flops_used": 7.78e+17
+        "total_flops_used": 1.033e+18
       },
       "body_text": null
     }
