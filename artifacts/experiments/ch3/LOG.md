@@ -154,3 +154,98 @@ This file is the working log for Chapter 3 experiments only.
     - keep the 7-shape exact-family lookup as the primary rule
     - use the large-`N` capped power-law fit for interpolation:
       - `lr(N) = min(1e-3, 9e-4 * (N / 42467328)^(-0.4716889721))`
+
+## `3_3_1_isoflops_3e15_full`
+
+- Experiment ID: `3_3_1_isoflops_3e15_full`
+- What this experiment is:
+  - the first new full IsoFLOPs curve after hyperparameter calibration
+- Config:
+  - all 7 exact anchor-ratio shapes
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `256, 384, 512, 640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+    - `1024 -> 6e-4`
+  - fixed `train_flops = 3e15`
+- Why we are doing it:
+  - we want a denser budget axis for the eventual `N_opt(C)` fit
+  - this budget is cheap enough to add a full 7-shape curve
+- Output directory:
+  - `artifacts/experiments/ch3/3_3_1_isoflops_3e15_full/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_3_1_isoflops_3e15_full/grid.json`
+  - total planned budget: `7 * 3e15 = 2.1e16` FLOPs
+
+## `3_3_2_isoflops_6e15_full`
+
+- Experiment ID: `3_3_2_isoflops_6e15_full`
+- What this experiment is:
+  - the second new full IsoFLOPs curve after hyperparameter calibration
+- Config:
+  - all 7 exact anchor-ratio shapes
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `256, 384, 512, 640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+    - `1024 -> 6e-4`
+  - fixed `train_flops = 6e15`
+- Why we are doing it:
+  - we want another cheap budget point before the existing `1e16` curve
+  - this improves the log-budget density for the eventual power-law fit
+- Output directory:
+  - `artifacts/experiments/ch3/3_3_2_isoflops_6e15_full/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_3_2_isoflops_6e15_full/grid.json`
+  - total planned budget: `7 * 6e15 = 4.2e16` FLOPs
+
+## `3_3_3_isoflops_3e16_full`
+
+- Experiment ID: `3_3_3_isoflops_3e16_full`
+- What this experiment is:
+  - the first medium-budget full IsoFLOPs curve in the main search
+- Config:
+  - all 7 exact anchor-ratio shapes
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `256, 384, 512, 640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+    - `1024 -> 6e-4`
+  - fixed `train_flops = 3e16`
+- Why we are doing it:
+  - this is the first budget where we expect the optimum to start moving away from the smallest shape
+  - we still want the full 7-shape curve before narrowing the bracket
+- Output directory:
+  - `artifacts/experiments/ch3/3_3_3_isoflops_3e16_full/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_3_3_isoflops_3e16_full/grid.json`
+  - total planned budget: `7 * 3e16 = 2.1e17` FLOPs
+
+## `3_3_4_isoflops_6e16_full`
+
+- Experiment ID: `3_3_4_isoflops_6e16_full`
+- What this experiment is:
+  - the second medium-budget full IsoFLOPs curve in the main search
+- Config:
+  - all 7 exact anchor-ratio shapes
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `256, 384, 512, 640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+    - `1024 -> 6e-4`
+  - fixed `train_flops = 6e16`
+- Why we are doing it:
+  - this budget should give the clearest full-curve signal before we switch to a high-budget bracket
+- Output directory:
+  - `artifacts/experiments/ch3/3_3_4_isoflops_6e16_full/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_3_4_isoflops_6e16_full/grid.json`
+  - total planned budget: `7 * 6e16 = 4.2e17` FLOPs
