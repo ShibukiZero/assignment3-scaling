@@ -31,6 +31,38 @@ class StoredRun:
         }
 
 
+@dataclass(frozen=True)
+class StoredReservation:
+    id: int
+    api_key: str
+    d_model: int
+    num_layers: int
+    num_heads: int
+    batch_size: int
+    learning_rate: float
+    train_flops: int
+    status: str
+    failure_reason: str | None
+    created_at: str
+    updated_at: str
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "api_key": self.api_key,
+            "d_model": self.d_model,
+            "num_layers": self.num_layers,
+            "num_heads": self.num_heads,
+            "batch_size": self.batch_size,
+            "learning_rate": self.learning_rate,
+            "train_flops": self.train_flops,
+            "status": self.status,
+            "failure_reason": self.failure_reason,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
 class ApiStore:
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path).expanduser()
@@ -258,6 +290,48 @@ class ApiStore:
                 (api_key,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def get_reservations(
+        self,
+        *,
+        api_key: str | None = None,
+        limit: int = 100,
+    ) -> list[StoredReservation]:
+        normalized_limit = max(1, min(limit, 1000))
+        query = """
+            SELECT id, api_key, d_model, num_layers, num_heads, batch_size,
+                   learning_rate, train_flops, status, failure_reason,
+                   created_at, updated_at
+            FROM reservations
+        """
+        params: tuple[Any, ...]
+        if api_key is None:
+            query += " ORDER BY id DESC LIMIT ?"
+            params = (normalized_limit,)
+        else:
+            query += " WHERE api_key = ? ORDER BY id DESC LIMIT ?"
+            params = (api_key, normalized_limit)
+
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [StoredReservation(**dict(row)) for row in rows]
+
+    def get_reservation_status_counts(self, api_key: str | None = None) -> dict[str, int]:
+        query = """
+            SELECT status, COUNT(*) AS reservation_count
+            FROM reservations
+        """
+        params: tuple[Any, ...]
+        if api_key is None:
+            query += " GROUP BY status ORDER BY status ASC"
+            params = ()
+        else:
+            query += " WHERE api_key = ? GROUP BY status ORDER BY status ASC"
+            params = (api_key,)
+
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return {str(row["status"]): int(row["reservation_count"]) for row in rows}
 
     def get_total_flops_used(self, api_key: str) -> int | None:
         with self._connect() as connection:

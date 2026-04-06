@@ -226,6 +226,29 @@ The current mainline now supports:
 - worker-pool execution across all visible CUDA devices
 - graceful request-level OOM handling so a single oversized query does not crash the whole service
 - graceful shutdown that lets running jobs finish while rejecting queued and new requests
+- reservation persistence plus startup recovery for incomplete `PENDING`/`RUNNING` jobs
+- a read-only admin reservations view for debugging budget state and job status flow
+
+### Inspect reservation state
+
+For debugging budget state, queueing, or crash recovery, you can inspect the persisted reservation
+table through the local admin endpoint:
+
+```sh
+curl "http://127.0.0.1:8000/__admin__/reservations?api_key=test-key"
+```
+
+This returns:
+
+- `active_reserved_flops` for that API key
+- per-status reservation counts
+- recent reservation rows, including `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `FAILED_RECOVERED`
+
+You can also inspect the most recent reservations globally:
+
+```sh
+curl "http://127.0.0.1:8000/__admin__/reservations?limit=20"
+```
 
 The current GPU path has been smoke-tested on the largest handout-legal configuration:
 

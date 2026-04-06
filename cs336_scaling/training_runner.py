@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 import random
 from contextlib import nullcontext
@@ -14,6 +15,8 @@ from cs336_scaling.api_contract import TrainingConfig
 from cs336_scaling.model import BasicsTransformerLM
 from cs336_scaling.token_dataset import TokenizedDataset
 from cs336_scaling.training_budget import TrainingPlan, build_training_plan
+
+logger = logging.getLogger("uvicorn.error")
 
 
 @dataclass(frozen=True)
@@ -155,6 +158,23 @@ class TrainingRunner:
             raise ValueError("Tokenized corpus must contain at least context_length + 1 tokens.")
 
         plan = self._capped_plan(config)
+        logger.info(
+            "training plan for api_key=%s device=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s max_steps=%s train_tokens=%.2f effective_train_tokens=%s tokens_per_step=%s mixed_precision=%s activation_checkpointing=%s",
+            config.api_key,
+            self.device,
+            config.d_model,
+            config.num_layers,
+            config.num_heads,
+            config.batch_size,
+            config.learning_rate,
+            config.train_flops,
+            plan.max_steps,
+            plan.train_tokens,
+            plan.effective_train_tokens,
+            plan.tokens_per_step,
+            self.mixed_precision,
+            self.activation_checkpointing,
+        )
         seed = _stable_seed(config)
         rng = random.Random(seed)
         fork_devices = []
@@ -207,8 +227,16 @@ class TrainingRunner:
                 scheduler.step()
                 final_loss = float(loss.detach().item())
 
-        return TrainingRunResult(
+        result = TrainingRunResult(
             loss=final_loss,
             steps_completed=plan.max_steps,
             training_plan=plan,
         )
+        logger.info(
+            "training completed for api_key=%s device=%s steps_completed=%s final_loss=%s",
+            config.api_key,
+            self.device,
+            result.steps_completed,
+            result.loss,
+        )
+        return result

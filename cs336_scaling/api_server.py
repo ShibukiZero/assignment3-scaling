@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import signal
 import threading
@@ -21,6 +22,7 @@ from cs336_scaling.api_store import ApiStore
 
 DEFAULT_DB_PATH = Path("artifacts/api/api.db")
 SCALING_LAW_FLOPS_BUDGET_CAP = int(2e18)
+logger = logging.getLogger("uvicorn.error")
 
 
 def parse_allowed_keys(raw_value: str | None) -> set[str]:
@@ -39,13 +41,20 @@ class ApiRuntime:
         accept_all_keys: bool = True,
     ) -> None:
         self.store = ApiStore(db_path)
-        self.store.recover_incomplete_reservations()
+        recovered = self.store.recover_incomplete_reservations()
         self.backend = backend
         self.allowed_api_keys = set(allowed_api_keys or set())
         self.accept_all_keys = accept_all_keys
         self._state_lock = threading.Lock()
         self._shutting_down = False
         self._inflight_runs: dict[object, _InflightRun] = {}
+        logger.info(
+            "api runtime initialized with db_path=%s backend=%s max_concurrency=%s recovered_reservations=%s",
+            Path(db_path).expanduser(),
+            type(backend).__name__,
+            getattr(backend, "max_concurrency", "unknown"),
+            recovered,
+        )
 
         for api_key in self.allowed_api_keys:
             self.store.register_api_key(api_key)
@@ -71,7 +80,23 @@ class ApiRuntime:
     def ensure_budget_available(self, api_key: str, additional_flops: int) -> None:
         total_flops_used = self.store.get_total_flops_used(api_key) or 0
         reserved_flops = self.store.get_active_reserved_flops(api_key)
+        logger.info(
+            "budget check for api_key=%s completed_flops=%s reserved_flops=%s requested_flops=%s cap=%s",
+            api_key,
+            total_flops_used,
+            reserved_flops,
+            additional_flops,
+            SCALING_LAW_FLOPS_BUDGET_CAP,
+        )
         if total_flops_used + reserved_flops + additional_flops > SCALING_LAW_FLOPS_BUDGET_CAP:
+            logger.warning(
+                "budget rejected for api_key=%s completed_flops=%s reserved_flops=%s requested_flops=%s cap=%s",
+                api_key,
+                total_flops_used,
+                reserved_flops,
+                additional_flops,
+                SCALING_LAW_FLOPS_BUDGET_CAP,
+            )
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -85,18 +110,41 @@ class ApiRuntime:
     def begin_shutdown(self) -> None:
         with self._state_lock:
             self._shutting_down = True
+        logger.warning("api runtime entering shutdown mode")
         self.backend.begin_shutdown()
 
     def wait_for_shutdown(self, timeout: float | None = None) -> bool:
-        return self.backend.wait_for_shutdown(timeout=timeout)
+        drained = self.backend.wait_for_shutdown(timeout=timeout)
+        logger.warning("api runtime shutdown drain completed=%s", drained)
+        return drained
 
     def run_training_query(self, config):
         cached_run = self.store.get_run(config)
         if cached_run is not None:
+            logger.info(
+                "cache hit for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                config.api_key,
+                config.d_model,
+                config.num_layers,
+                config.num_heads,
+                config.batch_size,
+                config.learning_rate,
+                config.train_flops,
+            )
             return cached_run, True
 
         with self._state_lock:
             if self._shutting_down:
+                logger.warning(
+                    "rejecting new query during shutdown for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                )
                 raise BackendUnavailableError("Training backend is shutting down.")
             inflight = self._inflight_runs.get(config)
             if inflight is None:
@@ -105,8 +153,30 @@ class ApiRuntime:
                 inflight = _InflightRun(reservation_id=reservation_id)
                 self._inflight_runs[config] = inflight
                 is_owner = True
+                logger.info(
+                    "created reservation=%s for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                    reservation_id,
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                )
             else:
                 is_owner = False
+                logger.info(
+                    "dedupe wait on inflight reservation=%s for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                    inflight.reservation_id,
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                )
 
         if not is_owner:
             inflight.event.wait()
@@ -117,15 +187,28 @@ class ApiRuntime:
 
         try:
             self.store.mark_reservation_running(inflight.reservation_id)
+            logger.info("reservation=%s marked RUNNING for api_key=%s", inflight.reservation_id, config.api_key)
             result = self.backend.run(config)
             self.store.insert_run(config, result.loss)
             self.store.mark_reservation_succeeded(inflight.reservation_id)
+            logger.info(
+                "reservation=%s marked SUCCEEDED for api_key=%s loss=%s",
+                inflight.reservation_id,
+                config.api_key,
+                result.loss,
+            )
             inflight.result = result
             return result, False
         except Exception as exc:
             self.store.mark_reservation_failed(
                 inflight.reservation_id,
                 failure_reason=str(exc),
+            )
+            logger.warning(
+                "reservation=%s marked FAILED for api_key=%s reason=%s",
+                inflight.reservation_id,
+                config.api_key,
+                exc,
             )
             inflight.error = exc
             raise
@@ -222,6 +305,31 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
 
         threading.Thread(target=_drain_and_stop, daemon=True).start()
         return {"message": "Shutdown initiated."}
+
+    @app.get("/__admin__/reservations")
+    def admin_reservations(
+        api_key: str | None = Query(default=None),
+        limit: int = Query(default=100, ge=1, le=1000),
+    ) -> dict[str, object]:
+        if api_key is not None:
+            resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+        else:
+            resolved_api_key = None
+
+        reservations = runtime.store.get_reservations(
+            api_key=resolved_api_key,
+            limit=limit,
+        )
+        return {
+            "api_key": resolved_api_key,
+            "active_reserved_flops": (
+                runtime.store.get_active_reserved_flops(resolved_api_key)
+                if resolved_api_key is not None
+                else None
+            ),
+            "status_counts": runtime.store.get_reservation_status_counts(resolved_api_key),
+            "reservations": [reservation.to_public_dict() for reservation in reservations],
+        }
 
     return app
 

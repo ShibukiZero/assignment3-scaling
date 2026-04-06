@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -669,12 +670,18 @@ def test_runtime_counts_reserved_flops_when_validating_new_queries(tmp_path: Pat
     backend.started.wait(timeout=5.0)
     thread_b.start()
     backend.wait_for_calls(2, timeout=5.0)
+    deadline = time.monotonic() + 5.0
+    while runtime.store.get_active_reserved_flops("queued-cap-key") < int(2e18):
+        if time.monotonic() >= deadline:
+            raise AssertionError("Timed out waiting for reserved FLOPs to reach the expected value.")
+        time.sleep(0.01)
     thread_c = threading.Thread(target=worker, args=(config_c,))
     thread_c.start()
+    thread_c.join(timeout=5.0)
+    assert not thread_c.is_alive(), "The capped request should fail before earlier jobs are released."
     backend.release.set()
     thread_a.join(timeout=5.0)
     thread_b.join(timeout=5.0)
-    thread_c.join(timeout=5.0)
 
     assert backend.calls == 2
     assert errors == [
@@ -798,6 +805,105 @@ def test_recovered_reservations_do_not_block_future_budget_usage(tmp_path: Path)
     )
 
     runtime.ensure_budget_available("recover-budget-key", int(2e18))
+
+
+def test_admin_reservations_exposes_status_counts_and_entries_for_api_key(tmp_path: Path) -> None:
+    db_path = tmp_path / "api.db"
+    runtime = ApiRuntime(
+        db_path=db_path,
+        backend=RecordingBackend(),
+        accept_all_keys=True,
+    )
+    pending_id = runtime.store.create_reservation(
+        build_training_config(
+            api_key="inspect-key",
+            d_model=512,
+            num_layers=8,
+            num_heads=8,
+            batch_size=128,
+            learning_rate=1e-3,
+            train_flops=int(1e16),
+        )
+    )
+    running_id = runtime.store.create_reservation(
+        build_training_config(
+            api_key="inspect-key",
+            d_model=768,
+            num_layers=12,
+            num_heads=12,
+            batch_size=128,
+            learning_rate=9e-4,
+            train_flops=int(3e16),
+        )
+    )
+    failed_id = runtime.store.create_reservation(
+        build_training_config(
+            api_key="inspect-key",
+            d_model=256,
+            num_layers=4,
+            num_heads=4,
+            batch_size=128,
+            learning_rate=8e-4,
+            train_flops=int(1e15),
+        )
+    )
+    runtime.store.mark_reservation_running(running_id)
+    runtime.store.mark_reservation_failed(failed_id, failure_reason="synthetic failure")
+    client = TestClient(create_app(runtime))
+
+    response = client.get("/__admin__/reservations", params={"api_key": "inspect-key"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["api_key"] == "inspect-key"
+    assert payload["active_reserved_flops"] == int(4e16)
+    assert payload["status_counts"] == {"FAILED": 1, "PENDING": 1, "RUNNING": 1}
+    assert [row["id"] for row in payload["reservations"]] == [failed_id, running_id, pending_id]
+    assert payload["reservations"][0]["failure_reason"] == "synthetic failure"
+    assert payload["reservations"][1]["status"] == "RUNNING"
+    assert payload["reservations"][2]["status"] == "PENDING"
+
+
+def test_admin_reservations_lists_global_recent_reservations_without_api_key(tmp_path: Path) -> None:
+    db_path = tmp_path / "api.db"
+    runtime = ApiRuntime(
+        db_path=db_path,
+        backend=RecordingBackend(),
+        accept_all_keys=True,
+    )
+    first_id = runtime.store.create_reservation(
+        build_training_config(
+            api_key="key-a",
+            d_model=512,
+            num_layers=8,
+            num_heads=8,
+            batch_size=128,
+            learning_rate=1e-3,
+            train_flops=int(1e16),
+        )
+    )
+    second_id = runtime.store.create_reservation(
+        build_training_config(
+            api_key="key-b",
+            d_model=768,
+            num_layers=12,
+            num_heads=12,
+            batch_size=128,
+            learning_rate=9e-4,
+            train_flops=int(3e16),
+        )
+    )
+    runtime.store.mark_reservation_running(second_id)
+    client = TestClient(create_app(runtime))
+
+    response = client.get("/__admin__/reservations", params={"limit": 10})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["api_key"] is None
+    assert payload["active_reserved_flops"] is None
+    assert payload["status_counts"] == {"PENDING": 1, "RUNNING": 1}
+    assert [row["id"] for row in payload["reservations"]] == [second_id, first_id]
 
 
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:
