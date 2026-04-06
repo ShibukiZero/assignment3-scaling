@@ -184,6 +184,37 @@ class ApiStore:
                 ),
             )
 
+    def finalize_successful_run(self, config: TrainingConfig, loss: float, reservation_id: int) -> None:
+        self.register_api_key(config.api_key)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO runs(
+                    api_key, d_model, num_layers, num_heads, batch_size,
+                    learning_rate, train_flops, loss
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                    loss,
+                ),
+            )
+            connection.execute(
+                """
+                UPDATE reservations
+                SET status = 'SUCCEEDED',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (reservation_id,),
+            )
+
     def create_reservation(self, config: TrainingConfig) -> int:
         self.register_api_key(config.api_key)
         with self._connect() as connection:
@@ -213,18 +244,6 @@ class ApiStore:
                 """
                 UPDATE reservations
                 SET status = 'RUNNING',
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (reservation_id,),
-            )
-
-    def mark_reservation_succeeded(self, reservation_id: int) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                """
-                UPDATE reservations
-                SET status = 'SUCCEEDED',
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,

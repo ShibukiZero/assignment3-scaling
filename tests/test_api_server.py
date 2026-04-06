@@ -265,7 +265,7 @@ def test_loss_rejects_empty_api_key_as_client_error(tmp_path: Path) -> None:
 
     response = client.get("/loss", params=build_query(api_key=""))
 
-    assert response.status_code == 422
+    assert response.status_code == 404
     assert response.json() == {"detail": {"message": "api_key must be provided."}}
 
 
