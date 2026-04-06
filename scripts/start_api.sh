@@ -88,6 +88,12 @@ fi
 mkdir -p "$(dirname "${CS336_API_DB_PATH}")"
 mkdir -p "${CS336_LOG_DIR}"
 
+python_bin="$(uv run which python 2>/dev/null || true)"
+if [[ -z "${python_bin}" ]]; then
+  echo "Unable to resolve the project Python interpreter via 'uv run which python'." >&2
+  exit 1
+fi
+
 echo "[start_api] train_data_meta_path=${CS336_TRAIN_DATA_META_PATH}"
 echo "[start_api] vocab_size=${CS336_VOCAB_SIZE}"
 echo "[start_api] api_db_path=${CS336_API_DB_PATH}"
@@ -109,26 +115,12 @@ if [[ "${DAEMON_MODE}" == "1" ]]; then
   pid_path="${CS336_LOG_DIR}/api-${PORT}.pid"
   echo "[start_api] daemon_log=${log_path}"
   : > "${log_path}"
-  nohup uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}" >"${log_path}" 2>&1 &
-  launcher_pid=$!
-  server_pid="${launcher_pid}"
-  for _ in $(seq 1 50); do
-    if [[ -f "${log_path}" ]]; then
-      detected_pid="$(grep -oE 'Started server process \[[0-9]+\]' "${log_path}" 2>/dev/null | tail -n 1 | grep -oE '[0-9]+' || true)"
-      if [[ -n "${detected_pid}" ]]; then
-        server_pid="${detected_pid}"
-        break
-      fi
-    fi
-    sleep 0.1
-  done
+  nohup "${python_bin}" -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}" >"${log_path}" 2>&1 &
+  server_pid=$!
   printf '%s\n' "${server_pid}" > "${pid_path}"
   echo "[start_api] daemon_pid=${server_pid}"
-  if [[ "${server_pid}" != "${launcher_pid}" ]]; then
-    echo "[start_api] launcher_pid=${launcher_pid}"
-  fi
   echo "[start_api] pid_file=${pid_path}"
   exit 0
 fi
 
-exec uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}"
+exec "${python_bin}" -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}"
