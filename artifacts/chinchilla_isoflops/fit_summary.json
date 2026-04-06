@@ -1,0 +1,93 @@
+{
+  "input_path": "data/isoflops_curves.json",
+  "optimal_points": [
+    {
+      "compute_budget": 6e+18,
+      "optimal_parameters": 762093419.0,
+      "optimal_dataset_tokens": 1312175089.1277542,
+      "final_loss": 5.899930270214304
+    },
+    {
+      "compute_budget": 1e+19,
+      "optimal_parameters": 806647749.0,
+      "optimal_dataset_tokens": 2066164157.4439783,
+      "final_loss": 5.617943423092358
+    },
+    {
+      "compute_budget": 3e+19,
+      "optimal_parameters": 1536852354.0,
+      "optimal_dataset_tokens": 3253402961.5703735,
+      "final_loss": 5.107176953205009
+    },
+    {
+      "compute_budget": 6e+19,
+      "optimal_parameters": 1952041776.0,
+      "optimal_dataset_tokens": 5122841182.472726,
+      "final_loss": 4.830586005050577
+    },
+    {
+      "compute_budget": 1e+20,
+      "optimal_parameters": 3253402960.0,
+      "optimal_dataset_tokens": 5122841182.472726,
+      "final_loss": 4.6528929644335255
+    },
+    {
+      "compute_budget": 3e+20,
+      "optimal_parameters": 5903836027.0,
+      "optimal_dataset_tokens": 8469069901.558091,
+      "final_loss": 4.311218819265305
+    },
+    {
+      "compute_budget": 6e+20,
+      "optimal_parameters": 6971055968.0,
+      "optimal_dataset_tokens": 14345028996.903902,
+      "final_loss": 4.121240846441071
+    },
+    {
+      "compute_budget": 1e+21,
+      "optimal_parameters": 6859328563.0,
+      "optimal_dataset_tokens": 24297810658.27429,
+      "final_loss": 4.002834749948777
+    },
+    {
+      "compute_budget": 3e+21,
+      "optimal_parameters": 12148905329.0,
+      "optimal_dataset_tokens": 41155971378.46459,
+      "final_loss": 3.773187514504335
+    }
+  ],
+  "model_size_fit": {
+    "slope": 0.4686826677436996,
+    "intercept": 0.06573302999474678,
+    "r_squared": 0.9787041983969745,
+    "prefactor": 1.1634106364199872,
+    "equation": "N_opt(C) = 1.163411e+00 * C^0.468683"
+  },
+  "dataset_size_fit": {
+    "slope": 0.5313173322562983,
+    "intercept": -0.8438842803783521,
+    "r_squared": 0.9833505185574002,
+    "prefactor": 0.14325695627086849,
+    "equation": "D_opt(C) = 1.432570e-01 * C^0.531317"
+  },
+  "model_predictions": [
+    {
+      "compute_budget": 1e+23,
+      "predicted_optimal_parameters": 70054233904.71175
+    },
+    {
+      "compute_budget": 1e+24,
+      "predicted_optimal_parameters": 206118539185.03442
+    }
+  ],
+  "dataset_predictions": [
+    {
+      "compute_budget": 1e+23,
+      "predicted_optimal_dataset_tokens": 237910911842.05032
+    },
+    {
+      "compute_budget": 1e+24,
+      "predicted_optimal_dataset_tokens": 808596195789.2734
+    }
+  ]
+}
