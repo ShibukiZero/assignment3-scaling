@@ -1,0 +1,571 @@
+{
+  "experiment_id": "3_2_2_large_n_lr_refine",
+  "grid_config_path": "artifacts/experiments/ch3/3_2_2_large_n_lr_refine/grid.json",
+  "base_url": "http://127.0.0.1:8000",
+  "api_key": "cs336_assignment3_fixed_key",
+  "client": {
+    "detected_local_gpu_count": 3,
+    "max_inflight": 3,
+    "request_timeout_s": 3600.0
+  },
+  "num_requests": 15,
+  "request_plan": [
+    {
+      "request_id": "shape_768_6_12__lr_8e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_8e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.0008
+      }
+    },
+    {
+      "request_id": "shape_768_6_12__lr_8.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_8.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.00085
+      }
+    },
+    {
+      "request_id": "shape_768_6_12__lr_9e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_9e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.0009
+      }
+    },
+    {
+      "request_id": "shape_768_6_12__lr_9.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_9.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.00095
+      }
+    },
+    {
+      "request_id": "shape_768_6_12__lr_1e-3",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_1e-3"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.001
+      }
+    },
+    {
+      "request_id": "shape_896_7_14__lr_7e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_7e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0007
+      }
+    },
+    {
+      "request_id": "shape_896_7_14__lr_7.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_7.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.00075
+      }
+    },
+    {
+      "request_id": "shape_896_7_14__lr_8e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_8e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0008
+      }
+    },
+    {
+      "request_id": "shape_896_7_14__lr_8.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_8.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.00085
+      }
+    },
+    {
+      "request_id": "shape_896_7_14__lr_9e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_9e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0009
+      }
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0005
+      }
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_5.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_5.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.00055
+      }
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_6e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_6e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0006
+      }
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_6.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_6.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.00065
+      }
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_7e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_7e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0007
+      }
+    }
+  ],
+  "responses": [
+    {
+      "request_id": "shape_768_6_12__lr_8e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_8e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.0008
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.0008&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.644549369812012,
+        "total_flops_used": 6.5e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_768_6_12__lr_8.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_8.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.00085
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.00085&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.594936847686768,
+        "total_flops_used": 6.6e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_768_6_12__lr_9e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_9e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.0009
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.0009&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.534971237182617,
+        "total_flops_used": 6.8e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_768_6_12__lr_9.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_9.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.00095
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.00095&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.541914463043213,
+        "total_flops_used": 6.7e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_768_6_12__lr_1e-3",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_768_6_12__lr_1e-3"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 768,
+        "num_layers": 6,
+        "num_heads": 12,
+        "learning_rate": 0.001
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=768&num_layers=6&num_heads=12&learning_rate=0.001&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.555605888366699,
+        "total_flops_used": 6.6e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_896_7_14__lr_7e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_7e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0007
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.0007&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.95335578918457,
+        "total_flops_used": 6.9e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_896_7_14__lr_7.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_7.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.00075
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.00075&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.98012638092041,
+        "total_flops_used": 7.1e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_896_7_14__lr_8e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_8e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0008
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.0008&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.992044925689697,
+        "total_flops_used": 6.8e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_896_7_14__lr_8.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_8.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.00085
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.00085&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.018240451812744,
+        "total_flops_used": 7e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_896_7_14__lr_9e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_896_7_14__lr_9e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 896,
+        "num_layers": 7,
+        "num_heads": 14,
+        "learning_rate": 0.0009
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=896&num_layers=7&num_heads=14&learning_rate=0.0009&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 5.9881696701049805,
+        "total_flops_used": 7.4e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0005
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.0005&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.352400779724121,
+        "total_flops_used": 7.3e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_5.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_5.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.00055
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.00055&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.265199661254883,
+        "total_flops_used": 7.2e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_6e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_6e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0006
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.0006&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.246502876281738,
+        "total_flops_used": 7.3e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_6.5e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_6.5e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.00065
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.00065&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.330405235290527,
+        "total_flops_used": 7.5e+17
+      },
+      "body_text": null
+    },
+    {
+      "request_id": "shape_1024_8_16__lr_7e-4",
+      "endpoint": "/loss",
+      "axis_choices": {
+        "trial": "shape_1024_8_16__lr_7e-4"
+      },
+      "params_without_api_key": {
+        "batch_size": 128,
+        "train_flops": 10000000000000000,
+        "d_model": 1024,
+        "num_layers": 8,
+        "num_heads": 16,
+        "learning_rate": 0.0007
+      },
+      "status_code": 200,
+      "url": "http://127.0.0.1:8000/loss?batch_size=128&train_flops=10000000000000000&d_model=1024&num_layers=8&num_heads=16&learning_rate=0.0007&api_key=cs336_assignment3_fixed_key",
+      "body_json": {
+        "loss": 6.317736625671387,
+        "total_flops_used": 7.6e+17
+      },
+      "body_text": null
+    }
+  ]
+}

@@ -142,6 +142,15 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/grid.json`
   - total planned budget: `15 * 1e16 = 1.5e17` FLOPs
+  - observed conclusion:
+    - `shape_768_6_12` -> refined best `lr = 9e-4`
+    - `shape_896_7_14` -> refined best `lr = 7e-4`
+    - `shape_1024_8_16` -> refined best `lr = 6e-4`
+  - decision:
+    - keep `batch_size = 128`
+    - keep the 7-shape exact-family lookup as the primary rule
+    - use the large-`N` capped power-law fit for interpolation:
+      - `lr(N) = min(1e-3, 9e-4 * (N / 42467328)^(-0.4716889721))`
