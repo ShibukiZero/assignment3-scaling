@@ -18,7 +18,7 @@ import requests
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_EXPERIMENT_API_KEY = "cs336_assignment3_fixed_key"
-DEFAULT_REQUEST_TIMEOUT_S = 3600
+DEFAULT_REQUEST_TIMEOUT_S: float | None = None
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--request-timeout-s",
         type=float,
         default=DEFAULT_REQUEST_TIMEOUT_S,
-        help="Per-request timeout in seconds. Defaults to 3600 seconds.",
+        help=(
+            "Per-request timeout in seconds. Defaults to no client-side timeout. "
+            "Pass a positive value to enable a timeout."
+        ),
     )
     return parser
 
@@ -127,11 +130,14 @@ def run_request(
     *,
     base_url: str,
     request_plan: dict[str, Any],
-    request_timeout_s: float,
+    request_timeout_s: float | None,
 ) -> dict[str, Any]:
     endpoint = request_plan["endpoint"].lstrip("/")
     url = f"{base_url.rstrip('/')}/{endpoint}"
-    response = requests.get(url, params=request_plan["params"], timeout=request_timeout_s)
+    request_kwargs: dict[str, Any] = {"params": request_plan["params"]}
+    if request_timeout_s is not None and request_timeout_s > 0:
+        request_kwargs["timeout"] = request_timeout_s
+    response = requests.get(url, **request_kwargs)
     body_text = response.text
     try:
         body_json = response.json()
@@ -180,7 +186,7 @@ def run_requests_bounded(
     base_url: str,
     requests_plan: list[dict[str, Any]],
     max_inflight: int,
-    request_timeout_s: float,
+    request_timeout_s: float | None,
 ) -> list[dict[str, Any]]:
     if max_inflight <= 1:
         return [
@@ -241,7 +247,11 @@ def main() -> None:
     shared_params = dict(raw_config.get("shared_params", {}))
     axes = load_axes(list(raw_config["axes"]))
     client_config = dict(raw_config.get("client", {}))
-    request_timeout_s = float(args.request_timeout_s)
+    request_timeout_s = (
+        None
+        if args.request_timeout_s is None or float(args.request_timeout_s) <= 0
+        else float(args.request_timeout_s)
+    )
     detected_gpu_count = detect_local_gpu_count()
     configured_max_inflight = client_config.get("max_inflight")
     if args.max_inflight is not None:
@@ -302,7 +312,7 @@ def main() -> None:
     print(f"Requests sent: {len(requests_plan)}")
     print(f"Detected local GPU count: {detected_gpu_count}")
     print(f"Client max_inflight: {max_inflight}")
-    print(f"Request timeout (s): {request_timeout_s}")
+    print(f"Request timeout (s): {'disabled' if request_timeout_s is None else request_timeout_s}")
     print(f"Results path: {results_path}")
 
 
