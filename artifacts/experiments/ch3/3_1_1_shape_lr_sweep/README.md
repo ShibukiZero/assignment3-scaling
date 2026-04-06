@@ -1,6 +1,6 @@
 # 3_1_1_shape_lr_sweep
 
-- Status: `planned`
+- Status: `completed`
 - Goal: select a promising shape family for Chapter 3 before running the main IsoFLOPs-style scaling-law sweeps.
 - Why this experiment:
   - fixed-`N` shape comparison should happen before the expensive main scaling sweep
@@ -35,3 +35,10 @@
 - Grid file:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
 - The runner writes `results.json` directly into this directory by default.
+- Final conclusion:
+  - see `shape_family_decision.md` in this directory
+- Recommended command:
+  - `./scripts/run_managed_api_experiment.sh artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
+  - by default, the managed script powers off the host after a successful unattended run
+- Interactive alternative when the local API is already running:
+  - `uv run python scripts/run_api_experiment_grid.py artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`

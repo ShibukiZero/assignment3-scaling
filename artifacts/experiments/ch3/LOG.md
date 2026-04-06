@@ -6,6 +6,9 @@ This file is the working log for Chapter 3 experiments only.
 
 - Record experiments by `experiment_id`, not by timestamp.
 - Keep each entry short.
+- Use two infra modes:
+  - use the managed lifecycle script for unattended or overnight runs; after a successful run it should shut down the host
+  - use the existing always-on local API flow for interactive daytime runs, so the GPU lease is not released between experiments
 - For each experiment, record:
   - what the experiment ID is
   - what configs are being swept or fixed
@@ -54,8 +57,11 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
   - runtime defaults live in `scripts/run_api_experiment_grid.py`
+  - managed lifecycle entrypoint: `scripts/run_managed_api_experiment.sh`
   - full grid budget: `5 * 5 * 1e16 = 2.5e17` FLOPs
   - incremental cost after the first run: `5 * 1e16 = 5e16` FLOPs
+  - working family decision recorded in `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/shape_family_decision.md`
+  - current anchor winner: `d_model=640, num_layers=5, num_heads=10`
