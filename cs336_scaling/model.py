@@ -8,6 +8,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ class BasicsTransformerLM(nn.Module):
         d_ff: int,
         attn_pdrop: Optional[float] = None,
         residual_pdrop: Optional[float] = None,
+        activation_checkpointing: bool = False,
     ):
         # Store the model configuration for serialization / deserialization
         self.config = {
@@ -76,6 +78,7 @@ class BasicsTransformerLM(nn.Module):
         self.ln_final = nn.LayerNorm(d_model, bias=False)
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
         self.residual_pdrop = residual_pdrop
+        self.activation_checkpointing = activation_checkpointing
         # report number of parameters
         logger.info(
             "number of non-embedding parameters: %.2fM" % (self.get_num_params() / 1e6,)
@@ -121,7 +124,10 @@ class BasicsTransformerLM(nn.Module):
             x = F.dropout(x, self.residual_pdrop)
         for layer in self.layers:
             # (batch size, sequence_length, d_model)
-            x = layer(x)
+            if self.activation_checkpointing and self.training:
+                x = checkpoint(layer, x, use_reentrant=False)
+            else:
+                x = layer(x)
         # (batch size, sequence_length, d_model)
         x = self.ln_final(x)
         # (batch size, sequence_length, vocab_size)
@@ -268,7 +274,9 @@ class TransformerBlock(nn.Module):
         # description in the paper.
         # Apply the multi-head self-attention sublayer
         x_ln = self.ln1(x)
-        causal_mask = nn.Transformer.generate_square_subsequent_mask(x.size(1))
+        causal_mask = nn.Transformer.generate_square_subsequent_mask(
+            x.size(1), device=x.device
+        )
         x_attn = self.attn(
             x_ln, x_ln, x_ln, need_weights=False, attn_mask=causal_mask, is_causal=True
         )[0]

@@ -5,8 +5,15 @@ description = "CS 336 Assignment 3: Scaling Laws"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.115.0",
+    "httpx>=0.28.0",
+    "numpy>=2.1.0",
+    "pyarrow>=18.1.0",
+    "pytest>=8.3.0",
     "requests>=2.32.3",
+    "tokenizers>=0.20.3",
     "torch>=2.7.0",
+    "uvicorn>=0.32.0",
 ]
 
 [tool.uv]
@@ -15,4 +22,4 @@ python-preference = "managed"
 
 
 [tool.setuptools.packages.find]
-include = ["cs336_basics"]
+include = ["cs336_scaling*"]
