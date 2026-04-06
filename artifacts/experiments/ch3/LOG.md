@@ -101,6 +101,47 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/grid.json`
   - total planned budget: `7 * 2 * 3 * 1e16 = 4.2e17` FLOPs
+  - observed conclusion:
+    - `batch_size = 128` beat `256` across all 7 exact-family shapes
+    - for downstream experiments, fix `batch_size = 128`
+    - the best LR was capped at `1e-3` for small and medium `N`, but the largest shapes preferred smaller values
+    - current large-`N` best points:
+      - `shape_768_6_12` -> `lr = 1e-3`
+      - `shape_896_7_14` -> `lr = 8e-4`
+      - `shape_1024_8_16` -> `lr = 6e-4`
+    - decision:
+      - do not fit a global smooth `lr(N)` yet
+      - treat the small-`N` region as capped by the API LR ceiling
+      - refine only the large-`N` LR region next, while keeping `batch_size = 128`
+
+## `3_2_2_large_n_lr_refine`
+
+- Experiment ID: `3_2_2_large_n_lr_refine`
+- What this experiment is:
+  - a focused LR refinement sweep for the largest exact-family shapes
+  - a follow-up to `3_2_1_bs_lr_joint_sweep`
+- Config:
+  - only the top 3 largest exact anchor-ratio shapes:
+    - `d_model=768, num_layers=6, num_heads=12`
+    - `d_model=896, num_layers=7, num_heads=14`
+    - `d_model=1024, num_layers=8, num_heads=16`
+  - fixed `batch_size = 128`
+  - fixed `train_flops = 1e16`
+  - use an explicit per-trial grid instead of a Cartesian LR axis, so each shape gets a tighter local LR window
+  - LR windows:
+    - for `768_6_12`: `8e-4`, `8.5e-4`, `9e-4`, `9.5e-4`, `1e-3`
+    - for `896_7_14`: `7e-4`, `7.5e-4`, `8e-4`, `8.5e-4`, `9e-4`
+    - for `1024_8_16`: `5e-4`, `5.5e-4`, `6e-4`, `6.5e-4`, `7e-4`
+- Why we are doing it:
+  - the large-`N` region is the only part that matters for the scaling-law extrapolation
+  - the previous LR grid was enough to show the trend, but too coarse to trust a large-`N` fit
+  - we want more precise calibration at the largest legal model sizes without reopening the whole search space
+- Output directory:
+  - `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/grid.json`
+  - total planned budget: `15 * 1e16 = 1.5e17` FLOPs

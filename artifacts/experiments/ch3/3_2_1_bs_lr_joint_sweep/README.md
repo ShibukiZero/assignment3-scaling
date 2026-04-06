@@ -1,6 +1,6 @@
 # 3_2_1_bs_lr_joint_sweep
 
-- Status: `planned`
+- Status: `completed`
 - Goal: learn how the best `(batch_size, learning_rate)` combination changes with model size `N` under the exact anchor-ratio family.
 - Why this experiment:
   - `batch_size` and `learning_rate` may be coupled
@@ -31,3 +31,24 @@
 - Grid file:
   - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/grid.json`
 - The runner writes `results.json` directly into this directory by default.
+
+## Outcome
+
+- `batch_size = 128` beat `256` across all 7 exact-family shapes.
+- For downstream Chapter 3 experiments, we fix `batch_size = 128`.
+- The best observed LR pattern was:
+  - `shape_256_2_4`: `lr = 1e-3`
+  - `shape_384_3_6`: `lr = 1e-3`
+  - `shape_512_4_8`: `lr = 1e-3`
+  - `shape_640_5_10`: `lr = 1e-3`
+  - `shape_768_6_12`: `lr = 1e-3`
+  - `shape_896_7_14`: `lr = 8e-4`
+  - `shape_1024_8_16`: `lr = 6e-4`
+
+## Working Decision
+
+- Small and medium `N` are capped by the API LR ceiling `1e-3`, so we should not force a global smooth fit for `lr(N)` yet.
+- The next useful step is to refine only the large-`N` LR region while keeping:
+  - the exact anchor-ratio family
+  - `batch_size = 128`
+  - `train_flops = 1e16`
