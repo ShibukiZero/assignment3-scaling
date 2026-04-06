@@ -115,139 +115,104 @@ later training or API-serving experiments.
 
 ## Assignment API Scaffold
 
-The repository now includes an assignment-style API scaffold with the same three public endpoints
-described in the handout:
+This repository includes a local assignment-style API replica with:
 
 - `GET /loss`
 - `GET /total_flops_used`
 - `GET /previous_runs`
 
-The framework already handles:
+It supports:
 
-- parameter validation against the assignment ranges
-- caching identical queries per `api_key`
-- FLOPs accounting per `api_key`
-- the assignment-style `2e18` scaling-law FLOPs hard cap
-- persistent run history in SQLite
+- assignment-range parameter validation
+- per-`api_key` caching and FLOPs accounting
+- the `2e18` hard cap
+- a real training backend for cache misses
+- reservation persistence and startup recovery
+- worker-pool execution across visible CUDA devices
+- request-level OOM handling
+- graceful shutdown
 
-The API now supports a real training backend for cache misses. When the runtime environment is
-configured with a tokenized training corpus and vocabulary size, `/loss` will:
+Main differences from the official handout API:
 
-- build a training plan from the assignment FLOPs budget
-- train on the tokenized training corpus
-- return the final **training loss**
-- cache the result in SQLite so repeated identical queries do not retrain
+- it trains on the local tokenized corpus, not the hidden official backend
+- it accepts any non-empty API key by default
+- error responses still use FastAPI's `{"detail": {"message": ...}}` wrapper
 
-### What this replica matches
+### Start and stop
 
-- endpoint names and main request parameters from the handout
-- training-loss semantics for `/loss`
-- repeated-query caching semantics
-- per-`api_key` FLOPs accounting
-- the `2e18` scaling-law budget cap
-- `404` for invalid hyperparameters and `422` for missing history
-
-### What still differs from the official handout API
-
-- this local replica trains on the local tokenized corpus, not the hidden official backend
-- by default it accepts any non-empty API key unless allowlist mode is enabled
-- error bodies still use FastAPI's `{"detail": {"message": ...}}` wrapper instead of a bare
-  `{"message": ...}` object
-- the local training data and tokenizer are not the official SlimPajama-based artifacts
-
-### Run the API
-
-```sh
-uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
-```
-
-You can also use the helper script:
+Foreground:
 
 ```sh
 ./scripts/start_api.sh
 ```
 
-For an AutoDL-friendly background launch with logs under `/root/autodl-tmp`, use:
+Background:
 
 ```sh
 ./scripts/start_api.sh --daemon
 ```
 
-The helper script auto-detects `cuda` first and falls back to `cpu` if no GPU is visible. You can
-still force a specific device:
+Stop:
+
+```sh
+./scripts/stop_api.sh
+```
+
+You can still force a device:
 
 ```sh
 ./scripts/start_api.sh cpu
+./scripts/start_api.sh cuda
 ```
 
-Optional environment variables:
+### Key environment variables
 
-- `CS336_API_DB_PATH`: SQLite path for cached runs and FLOPs accounting
-- `CS336_API_ACCEPT_ALL_KEYS=1`: accept any non-empty API key (default)
-- `CS336_API_KEYS`: comma-separated allowlist when you want fixed API keys
-- `CS336_TRAIN_DATA_META_PATH`: path to `train.meta.json` for the tokenized training corpus
-- `CS336_VOCAB_SIZE`: tokenizer vocabulary size used by the model
-- `CS336_CONTEXT_LENGTH`: sequence length for training and FLOPs planning (default `512`)
-- `CS336_DEVICE`: training device, such as `cpu` or `cuda` (default `cpu`)
-- `CS336_MIXED_PRECISION`: mixed precision mode, one of `off`, `bf16`, or `fp16`
-- `CS336_ACTIVATION_CHECKPOINTING`: `1` to enable checkpointing, `0` to disable it
-- `CS336_PRELOAD_DATASET`: `1` to preload the tokenized corpus into RAM on startup, `0` to lazy-load it per request
-- `CS336_DEVICES`: optional comma-separated device list such as `cuda:0,cuda:1`
-- `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
-- `CS336_LOG_DIR`: directory for daemon logs and PID files (default `/root/autodl-tmp/api-logs`)
+- `CS336_API_DB_PATH`
+- `CS336_API_ACCEPT_ALL_KEYS`
+- `CS336_API_KEYS`
+- `CS336_TRAIN_DATA_META_PATH`
+- `CS336_VOCAB_SIZE`
+- `CS336_CONTEXT_LENGTH`
+- `CS336_DEVICE`
+- `CS336_DEVICES`
+- `CS336_MIXED_PRECISION`
+- `CS336_ACTIVATION_CHECKPOINTING`
+- `CS336_PRELOAD_DATASET`
+- `CS336_MAX_STEPS_CAP`
+- `CS336_LOG_DIR`
 
 ### Runtime defaults
 
-When you start the service with `./scripts/start_api.sh`, the current defaults are:
-
-- prefer `cuda` if a visible GPU exists, otherwise use `cpu`
+- prefer `cuda` if available, otherwise `cpu`
 - use `bf16` automatically on CUDA runs
 - enable activation checkpointing automatically on CUDA runs
-- preload the tokenized dataset into RAM on startup
-- if `CS336_DEVICE=cuda`, use all visible CUDA devices by default
+- preload the tokenized dataset into RAM
+- use all visible CUDA devices when `CS336_DEVICE=cuda`
 - accept any non-empty API key unless allowlist mode is enabled
 
-When you start the service with `./scripts/start_api.sh --daemon`, the script also:
+Daemon mode writes:
 
-- writes logs to `/root/autodl-tmp/api-logs/api-<port>.log`
-- writes a PID file at `/root/autodl-tmp/api-logs/api-<port>.pid`
-- overwrites the previous log file for that port on each daemon launch
-- exits immediately after the server has been launched in the background
+- `/root/autodl-tmp/api-logs/api-<port>.log`
+- `/root/autodl-tmp/api-logs/api-<port>.pid`
 
-### Current backend status
+### Debugging and inspection
 
-The current mainline now supports:
-
-- assignment-style API validation and error semantics
-- per-`api_key` SQLite caching and FLOPs accounting
-- tokenized dataset loading from `.bin/.idx/.meta.json`
-- training-budget planning from the handout approximation
-- a minimal real backend that returns final **training loss**
-- worker-pool execution across all visible CUDA devices
-- graceful request-level OOM handling so a single oversized query does not crash the whole service
-- graceful shutdown that lets running jobs finish while rejecting queued and new requests
-- reservation persistence plus startup recovery for incomplete `PENDING`/`RUNNING` jobs
-- a read-only admin reservations view for debugging budget state and job status flow
-
-### Inspect reservation state
-
-For debugging budget state, queueing, or crash recovery, you can inspect the persisted reservation
-table through the local admin endpoint:
+Reservation state for one key:
 
 ```sh
 curl "http://127.0.0.1:8000/__admin__/reservations?api_key=test-key"
 ```
 
-This returns:
-
-- `active_reserved_flops` for that API key
-- per-status reservation counts
-- recent reservation rows, including `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `FAILED_RECOVERED`
-
-You can also inspect the most recent reservations globally:
+Recent reservations globally:
 
 ```sh
 curl "http://127.0.0.1:8000/__admin__/reservations?limit=20"
+```
+
+Tail the fixed daemon log:
+
+```sh
+tail -f /root/autodl-tmp/api-logs/api-8000.log
 ```
 
 The current GPU path has been smoke-tested on the largest handout-legal configuration:
@@ -258,119 +223,45 @@ The current GPU path has been smoke-tested on the largest handout-legal configur
 - `batch_size=128`
 - `batch_size=256`
 
-### Example: run the real backend on CPU
+### Common commands
+
+Quick smoke run:
 
 ```sh
-CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
-CS336_VOCAB_SIZE=32000 \
-CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
-CS336_DEVICE=cpu \
-uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh
 ```
 
-Equivalent helper-script command:
+Manual `/loss` request:
 
 ```sh
-./scripts/start_api.sh cpu
+curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
 ```
 
-For a quick smoke test on CPU, you can also add a small step cap:
+Reset the local API database:
 
 ```sh
-CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
-CS336_VOCAB_SIZE=32000 \
-CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
-CS336_DEVICE=cpu \
-CS336_MAX_STEPS_CAP=2 \
-uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+rm -f /root/autodl-tmp/api/api.db
 ```
 
-Equivalent helper-script command:
+Run the full test suite:
 
 ```sh
-CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh cpu
+uv run pytest -q
 ```
 
-### Example: run the real backend on GPU
+Run the API smoke suite:
 
 ```sh
-CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
-CS336_VOCAB_SIZE=32000 \
-CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
-CS336_DEVICE=cuda \
-uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
+bash scripts/run_api_smoke_suite.sh
 ```
 
-Equivalent helper-script command:
-
-```sh
-./scripts/start_api.sh cuda
-```
-
-Equivalent helper-script command in daemon mode:
-
-```sh
-./scripts/start_api.sh --daemon cuda
-```
-
-For an initial GPU smoke test, it is still a good idea to keep a very small cap:
-
-```sh
-CS336_TRAIN_DATA_META_PATH=/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json \
-CS336_VOCAB_SIZE=32000 \
-CS336_API_DB_PATH=/root/autodl-tmp/api/api.db \
-CS336_DEVICE=cuda \
-CS336_MAX_STEPS_CAP=2 \
-uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port 8000
-```
-
-Equivalent helper-script command:
-
-```sh
-CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh cuda
-```
-
-By default, the backend uses `bf16` whenever `CS336_DEVICE` starts with `cuda`. You can override
-that explicitly if needed:
+Optional CUDA overrides:
 
 ```sh
 CS336_MIXED_PRECISION=fp16 ./scripts/start_api.sh cuda
 CS336_MIXED_PRECISION=off ./scripts/start_api.sh cuda
-```
-
-Checkpointing also defaults on for CUDA runs and off for CPU runs. You can override it explicitly:
-
-```sh
-CS336_ACTIVATION_CHECKPOINTING=1 ./scripts/start_api.sh cuda
 CS336_ACTIVATION_CHECKPOINTING=0 ./scripts/start_api.sh cuda
-```
-
-Dataset preloading defaults on, so the service loads the tokenized corpus into memory during
-startup and reuses it across requests:
-
-```sh
-./scripts/start_api.sh
-CS336_PRELOAD_DATASET=0 ./scripts/start_api.sh
-```
-
-To inspect a background launch:
-
-```sh
-ls -lt /root/autodl-tmp/api-logs/
-cat /root/autodl-tmp/api-logs/api-8000.pid
-tail -f /root/autodl-tmp/api-logs/api-8000.log
-```
-
-To stop a daemonized server:
-
-```sh
-./scripts/stop_api.sh
-```
-
-Or for a non-default port:
-
-```sh
-./scripts/stop_api.sh 8001
+CS336_PRELOAD_DATASET=0 ./scripts/start_api.sh cuda
 ```
 
 The stop script first asks the local admin shutdown endpoint to drain running jobs gracefully. If
