@@ -184,7 +184,7 @@ You can still force a device:
 ### Runtime defaults
 
 - prefer `cuda` if available, otherwise `cpu`
-- use `bf16` automatically on CUDA runs
+- prefer `bf16` on CUDA when supported, otherwise fall back to `fp16`
 - enable activation checkpointing automatically on CUDA runs
 - preload the tokenized dataset into RAM
 - use all visible CUDA devices when `CS336_DEVICE=cuda`

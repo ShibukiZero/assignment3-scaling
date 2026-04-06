@@ -119,11 +119,52 @@ def test_get_training_backend_defaults_to_bf16_on_cuda(monkeypatch, tmp_path: Pa
     monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
     monkeypatch.setenv("CS336_DEVICE", "cuda")
     monkeypatch.delenv("CS336_MIXED_PRECISION", raising=False)
+    monkeypatch.setattr("torch.cuda.is_available", lambda: True)
+    monkeypatch.setattr("torch.cuda.device_count", lambda: 1)
+    monkeypatch.setattr("torch.cuda.is_bf16_supported", lambda device=None: True)
 
     backend = get_training_backend()
 
     assert isinstance(backend, TorchTrainingBackend)
     assert backend.runner.mixed_precision == "bf16"
+
+
+def test_get_training_backend_falls_back_to_fp16_when_cuda_bf16_is_unsupported(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.delenv("CS336_MIXED_PRECISION", raising=False)
+    monkeypatch.setattr("torch.cuda.is_available", lambda: True)
+    monkeypatch.setattr("torch.cuda.device_count", lambda: 1)
+    monkeypatch.setattr("torch.cuda.is_bf16_supported", lambda device=None: False)
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.mixed_precision == "fp16"
+
+
+def test_get_training_backend_uses_fp16_when_any_cuda_worker_lacks_bf16_support(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICES", "cuda:0,cuda:1")
+    monkeypatch.delenv("CS336_MIXED_PRECISION", raising=False)
+    monkeypatch.setattr("torch.cuda.is_available", lambda: True)
+    monkeypatch.setattr(
+        "torch.cuda.is_bf16_supported",
+        lambda device=None: False if device == 1 else True,
+    )
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.runner.mixed_precision == "fp16"
 
 
 def test_get_training_backend_allows_explicit_mixed_precision_override(monkeypatch, tmp_path: Path) -> None:
@@ -211,6 +252,7 @@ def test_get_training_backend_expands_cuda_to_all_visible_devices(monkeypatch, t
     monkeypatch.delenv("CS336_DEVICES", raising=False)
     monkeypatch.setattr("torch.cuda.is_available", lambda: True)
     monkeypatch.setattr("torch.cuda.device_count", lambda: 3)
+    monkeypatch.setattr("torch.cuda.is_bf16_supported", lambda device=None: True)
 
     backend = get_training_backend()
 
@@ -271,3 +313,31 @@ def test_torch_training_backend_runs_two_jobs_concurrently_across_two_workers(tm
     assert runner_a.calls == 1
     assert runner_b.calls == 1
     assert len(results) == 2
+
+
+def test_main_passes_app_instance_to_uvicorn_run(monkeypatch) -> None:
+    import argparse
+
+    from cs336_scaling import api_server
+
+    calls: dict[str, object] = {}
+
+    class DummyParser:
+        def parse_args(self):
+            return argparse.Namespace(host="127.0.0.1", port=8123)
+
+    def fake_run(app, host, port, reload):
+        calls["app"] = app
+        calls["host"] = host
+        calls["port"] = port
+        calls["reload"] = reload
+
+    monkeypatch.setattr(api_server, "build_parser", lambda: DummyParser())
+    monkeypatch.setattr(api_server.uvicorn, "run", fake_run)
+
+    api_server.main()
+
+    assert not isinstance(calls["app"], str)
+    assert calls["host"] == "127.0.0.1"
+    assert calls["port"] == 8123
+    assert calls["reload"] is False

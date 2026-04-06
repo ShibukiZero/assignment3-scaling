@@ -248,6 +248,38 @@ def _parse_devices(raw_value: str | None) -> list[str]:
     return [token.strip() for token in raw_value.split(",") if token.strip()]
 
 
+def _device_supports_bf16(device_spec: str) -> bool:
+    if not device_spec.startswith("cuda") or not torch.cuda.is_available():
+        return False
+
+    device: int | None
+    if ":" in device_spec:
+        _, index = device_spec.split(":", maxsplit=1)
+        device = int(index)
+    else:
+        device = None
+
+    probe = getattr(torch.cuda, "is_bf16_supported", None)
+    if callable(probe):
+        try:
+            if device is None:
+                return bool(probe())
+            return bool(probe(device=device))
+        except TypeError:
+            return bool(probe())
+
+    capability = torch.cuda.get_device_capability(device or 0)
+    return capability[0] >= 8
+
+
+def _default_mixed_precision_for_devices(device_specs: list[str]) -> str:
+    if not any(device_spec.startswith("cuda") for device_spec in device_specs):
+        return "off"
+    if all(_device_supports_bf16(device_spec) for device_spec in device_specs if device_spec.startswith("cuda")):
+        return "bf16"
+    return "fp16"
+
+
 def _resolve_device_specs(device: str) -> list[str]:
     normalized = device.strip()
     if normalized == "cuda":
@@ -268,11 +300,15 @@ def get_training_backend() -> TrainingBackend:
     context_length = int(os.environ.get("CS336_CONTEXT_LENGTH", "512"))
     device = os.environ.get("CS336_DEVICE", "cpu")
     devices = _parse_devices(os.environ.get("CS336_DEVICES"))
-    default_mixed_precision = "bf16" if device.startswith("cuda") else "off"
-    mixed_precision = os.environ.get("CS336_MIXED_PRECISION", default_mixed_precision)
+    resolved_devices = devices or _resolve_device_specs(device)
+    has_cuda_runner = any(device_spec.startswith("cuda") for device_spec in resolved_devices)
+    mixed_precision = os.environ.get(
+        "CS336_MIXED_PRECISION",
+        _default_mixed_precision_for_devices(resolved_devices),
+    )
     activation_checkpointing_raw = os.environ.get(
         "CS336_ACTIVATION_CHECKPOINTING",
-        "1" if device.startswith("cuda") else "0",
+        "1" if has_cuda_runner else "0",
     )
     activation_checkpointing = activation_checkpointing_raw == "1"
     preload_dataset_raw = os.environ.get("CS336_PRELOAD_DATASET", "1")
@@ -284,7 +320,7 @@ def get_training_backend() -> TrainingBackend:
         vocab_size=int(vocab_size),
         context_length=context_length,
         device=device,
-        devices=devices or None,
+        devices=resolved_devices,
         mixed_precision=mixed_precision,
         activation_checkpointing=activation_checkpointing,
         preload_dataset=preload_dataset,

@@ -69,13 +69,6 @@ if [[ -z "${CS336_DEVICE:-}" ]]; then
     uv run python -c 'import torch; print("cuda" if torch.cuda.is_available() else "cpu")' 2>/dev/null || echo cpu
   )"
 fi
-if [[ -z "${CS336_MIXED_PRECISION:-}" ]]; then
-  if [[ "${CS336_DEVICE}" == cuda* ]]; then
-    export CS336_MIXED_PRECISION="bf16"
-  else
-    export CS336_MIXED_PRECISION="off"
-  fi
-fi
 if [[ -z "${CS336_ACTIVATION_CHECKPOINTING:-}" ]]; then
   if [[ "${CS336_DEVICE}" == cuda* ]]; then
     export CS336_ACTIVATION_CHECKPOINTING="1"
@@ -100,7 +93,7 @@ echo "[start_api] vocab_size=${CS336_VOCAB_SIZE}"
 echo "[start_api] api_db_path=${CS336_API_DB_PATH}"
 echo "[start_api] context_length=${CS336_CONTEXT_LENGTH}"
 echo "[start_api] device=${CS336_DEVICE}"
-echo "[start_api] mixed_precision=${CS336_MIXED_PRECISION}"
+echo "[start_api] mixed_precision=${CS336_MIXED_PRECISION:-auto}"
 echo "[start_api] activation_checkpointing=${CS336_ACTIVATION_CHECKPOINTING}"
 echo "[start_api] preload_dataset=${CS336_PRELOAD_DATASET}"
 if [[ -n "${CS336_DEVICES:-}" ]]; then
@@ -117,9 +110,23 @@ if [[ "${DAEMON_MODE}" == "1" ]]; then
   echo "[start_api] daemon_log=${log_path}"
   : > "${log_path}"
   nohup uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}" >"${log_path}" 2>&1 &
-  server_pid=$!
+  launcher_pid=$!
+  server_pid="${launcher_pid}"
+  for _ in $(seq 1 50); do
+    if [[ -f "${log_path}" ]]; then
+      detected_pid="$(grep -oE 'Started server process \[[0-9]+\]' "${log_path}" 2>/dev/null | tail -n 1 | grep -oE '[0-9]+' || true)"
+      if [[ -n "${detected_pid}" ]]; then
+        server_pid="${detected_pid}"
+        break
+      fi
+    fi
+    sleep 0.1
+  done
   printf '%s\n' "${server_pid}" > "${pid_path}"
   echo "[start_api] daemon_pid=${server_pid}"
+  if [[ "${server_pid}" != "${launcher_pid}" ]]; then
+    echo "[start_api] launcher_pid=${launcher_pid}"
+  fi
   echo "[start_api] pid_file=${pid_path}"
   exit 0
 fi

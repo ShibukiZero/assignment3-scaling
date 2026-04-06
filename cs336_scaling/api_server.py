@@ -334,7 +334,10 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
     return app
 
 
-app = create_app()
+if __name__ != "__main__":
+    app = create_app()
+else:
+    app = None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -347,7 +350,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    uvicorn.run("cs336_scaling.api_server:app", host=args.host, port=args.port, reload=False)
+    uvicorn.run(create_app(), host=args.host, port=args.port, reload=False)
 
 
 if __name__ == "__main__":
