@@ -6,6 +6,7 @@ usage() {
   cat <<'EOF'
 Usage:
   ./scripts/start_api.sh [cpu|cuda] [port]
+  ./scripts/start_api.sh --daemon [cpu|cuda] [port]
 
 Environment overrides:
   CS336_TRAIN_DATA_META_PATH   Path to train.meta.json
@@ -19,11 +20,14 @@ Environment overrides:
   CS336_MAX_STEPS_CAP          Optional step cap for smoke tests
   CS336_API_ACCEPT_ALL_KEYS    Accept any non-empty API key (default: 1)
   CS336_API_KEYS               Comma-separated allowlist when accept-all is disabled
+  CS336_LOG_DIR                Directory for daemon logs and pid files (default: /root/autodl-tmp/api-logs)
 
 Examples:
   ./scripts/start_api.sh
   ./scripts/start_api.sh cpu
   ./scripts/start_api.sh cuda
+  ./scripts/start_api.sh --daemon
+  ./scripts/start_api.sh --daemon cuda
   CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh cuda 8000
 EOF
 }
@@ -31,6 +35,12 @@ EOF
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
+fi
+
+DAEMON_MODE=0
+if [[ "${1:-}" == "--daemon" ]]; then
+  DAEMON_MODE=1
+  shift
 fi
 
 DEVICE_ARG="${1:-}"
@@ -74,6 +84,7 @@ if [[ -z "${CS336_ACTIVATION_CHECKPOINTING:-}" ]]; then
 fi
 export CS336_PRELOAD_DATASET="${CS336_PRELOAD_DATASET:-1}"
 export CS336_API_ACCEPT_ALL_KEYS="${CS336_API_ACCEPT_ALL_KEYS:-1}"
+export CS336_LOG_DIR="${CS336_LOG_DIR:-/root/autodl-tmp/api-logs}"
 
 if [[ ! -f "${CS336_TRAIN_DATA_META_PATH}" ]]; then
   echo "Missing tokenized training metadata: ${CS336_TRAIN_DATA_META_PATH}" >&2
@@ -81,6 +92,7 @@ if [[ ! -f "${CS336_TRAIN_DATA_META_PATH}" ]]; then
 fi
 
 mkdir -p "$(dirname "${CS336_API_DB_PATH}")"
+mkdir -p "${CS336_LOG_DIR}"
 
 echo "[start_api] train_data_meta_path=${CS336_TRAIN_DATA_META_PATH}"
 echo "[start_api] vocab_size=${CS336_VOCAB_SIZE}"
@@ -94,5 +106,18 @@ if [[ -n "${CS336_MAX_STEPS_CAP:-}" ]]; then
   echo "[start_api] max_steps_cap=${CS336_MAX_STEPS_CAP}"
 fi
 echo "[start_api] host=0.0.0.0 port=${PORT}"
+
+if [[ "${DAEMON_MODE}" == "1" ]]; then
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  log_path="${CS336_LOG_DIR}/api-${PORT}-${timestamp}.log"
+  pid_path="${CS336_LOG_DIR}/api-${PORT}.pid"
+  echo "[start_api] daemon_log=${log_path}"
+  nohup uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}" >"${log_path}" 2>&1 &
+  server_pid=$!
+  printf '%s\n' "${server_pid}" > "${pid_path}"
+  echo "[start_api] daemon_pid=${server_pid}"
+  echo "[start_api] pid_file=${pid_path}"
+  exit 0
+fi
 
 exec uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}"

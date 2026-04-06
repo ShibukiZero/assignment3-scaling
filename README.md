@@ -167,6 +167,12 @@ You can also use the helper script:
 ./scripts/start_api.sh
 ```
 
+For an AutoDL-friendly background launch with logs under `/root/autodl-tmp`, use:
+
+```sh
+./scripts/start_api.sh --daemon
+```
+
 The helper script auto-detects `cuda` first and falls back to `cpu` if no GPU is visible. You can
 still force a specific device:
 
@@ -187,6 +193,7 @@ Optional environment variables:
 - `CS336_ACTIVATION_CHECKPOINTING`: `1` to enable checkpointing, `0` to disable it
 - `CS336_PRELOAD_DATASET`: `1` to preload the tokenized corpus into RAM on startup, `0` to lazy-load it per request
 - `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
+- `CS336_LOG_DIR`: directory for daemon logs and PID files (default `/root/autodl-tmp/api-logs`)
 
 ### Runtime defaults
 
@@ -197,6 +204,12 @@ When you start the service with `./scripts/start_api.sh`, the current defaults a
 - enable activation checkpointing automatically on CUDA runs
 - preload the tokenized dataset into RAM on startup
 - accept any non-empty API key unless allowlist mode is enabled
+
+When you start the service with `./scripts/start_api.sh --daemon`, the script also:
+
+- writes logs under `/root/autodl-tmp/api-logs/`
+- writes a PID file at `/root/autodl-tmp/api-logs/api-<port>.pid`
+- exits immediately after the server has been launched in the background
 
 ### Current backend status
 
@@ -266,6 +279,12 @@ Equivalent helper-script command:
 ./scripts/start_api.sh cuda
 ```
 
+Equivalent helper-script command in daemon mode:
+
+```sh
+./scripts/start_api.sh --daemon cuda
+```
+
 For an initial GPU smoke test, it is still a good idea to keep a very small cap:
 
 ```sh
@@ -304,6 +323,26 @@ startup and reuses it across requests:
 ```sh
 ./scripts/start_api.sh
 CS336_PRELOAD_DATASET=0 ./scripts/start_api.sh
+```
+
+To inspect a background launch:
+
+```sh
+ls -lt /root/autodl-tmp/api-logs/
+cat /root/autodl-tmp/api-logs/api-8000.pid
+tail -f /root/autodl-tmp/api-logs/api-8000-*.log
+```
+
+To stop a daemonized server:
+
+```sh
+./scripts/stop_api.sh
+```
+
+Or for a non-default port:
+
+```sh
+./scripts/stop_api.sh 8001
 ```
 
 ### Reset the local API database
