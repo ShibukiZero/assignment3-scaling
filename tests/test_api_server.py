@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from cs336_scaling.api_backend import BackendUnavailableError, TrainingOOMError, TrainingResult
 from cs336_scaling.api_contract import TrainingConfig, build_training_config
 from cs336_scaling.api_server import ApiRuntime, create_app
+from cs336_scaling.api_store import ApiStore
 
 
 class RecordingBackend:
@@ -744,6 +745,59 @@ def test_shutdown_rejects_pending_requests_but_allows_running_request_to_finish(
 
     assert results == [(9.1, False)]
     assert errors == ["Training backend is shutting down."]
+
+
+def test_runtime_recovers_incomplete_reservations_on_startup(tmp_path: Path) -> None:
+    db_path = tmp_path / "api.db"
+    store = ApiStore(db_path)
+    config = build_training_config(
+        api_key="recover-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e18),
+    )
+    reservation_id = store.create_reservation(config)
+    store.mark_reservation_running(reservation_id)
+
+    runtime = ApiRuntime(
+        db_path=db_path,
+        backend=RecordingBackend(loss=2.2),
+        accept_all_keys=True,
+    )
+
+    recovered = runtime.store.get_recovered_reservations("recover-key")
+
+    assert len(recovered) == 1
+    assert recovered[0]["status"] == "FAILED_RECOVERED"
+    assert recovered[0]["train_flops"] == int(1e18)
+    assert runtime.store.get_active_reserved_flops("recover-key") == 0
+
+
+def test_recovered_reservations_do_not_block_future_budget_usage(tmp_path: Path) -> None:
+    db_path = tmp_path / "api.db"
+    store = ApiStore(db_path)
+    config = build_training_config(
+        api_key="recover-budget-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e18),
+    )
+    reservation_id = store.create_reservation(config)
+    store.mark_reservation_running(reservation_id)
+
+    runtime = ApiRuntime(
+        db_path=db_path,
+        backend=RecordingBackend(loss=3.3),
+        accept_all_keys=True,
+    )
+
+    runtime.ensure_budget_available("recover-budget-key", int(2e18))
 
 
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:

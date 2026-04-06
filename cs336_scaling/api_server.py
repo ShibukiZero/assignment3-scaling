@@ -39,13 +39,13 @@ class ApiRuntime:
         accept_all_keys: bool = True,
     ) -> None:
         self.store = ApiStore(db_path)
+        self.store.recover_incomplete_reservations()
         self.backend = backend
         self.allowed_api_keys = set(allowed_api_keys or set())
         self.accept_all_keys = accept_all_keys
         self._state_lock = threading.Lock()
         self._shutting_down = False
         self._inflight_runs: dict[object, _InflightRun] = {}
-        self._reserved_flops_by_api_key: dict[str, int] = {}
 
         for api_key in self.allowed_api_keys:
             self.store.register_api_key(api_key)
@@ -70,7 +70,7 @@ class ApiRuntime:
 
     def ensure_budget_available(self, api_key: str, additional_flops: int) -> None:
         total_flops_used = self.store.get_total_flops_used(api_key) or 0
-        reserved_flops = self._reserved_flops_by_api_key.get(api_key, 0)
+        reserved_flops = self.store.get_active_reserved_flops(api_key)
         if total_flops_used + reserved_flops + additional_flops > SCALING_LAW_FLOPS_BUDGET_CAP:
             raise HTTPException(
                 status_code=422,
@@ -101,11 +101,9 @@ class ApiRuntime:
             inflight = self._inflight_runs.get(config)
             if inflight is None:
                 self.ensure_budget_available(config.api_key, config.train_flops)
-                inflight = _InflightRun()
+                reservation_id = self.store.create_reservation(config)
+                inflight = _InflightRun(reservation_id=reservation_id)
                 self._inflight_runs[config] = inflight
-                self._reserved_flops_by_api_key[config.api_key] = (
-                    self._reserved_flops_by_api_key.get(config.api_key, 0) + config.train_flops
-                )
                 is_owner = True
             else:
                 is_owner = False
@@ -118,20 +116,21 @@ class ApiRuntime:
             return inflight.result, True
 
         try:
+            self.store.mark_reservation_running(inflight.reservation_id)
             result = self.backend.run(config)
             self.store.insert_run(config, result.loss)
+            self.store.mark_reservation_succeeded(inflight.reservation_id)
             inflight.result = result
             return result, False
         except Exception as exc:
+            self.store.mark_reservation_failed(
+                inflight.reservation_id,
+                failure_reason=str(exc),
+            )
             inflight.error = exc
             raise
         finally:
             with self._state_lock:
-                reserved_flops = self._reserved_flops_by_api_key.get(config.api_key, 0) - config.train_flops
-                if reserved_flops > 0:
-                    self._reserved_flops_by_api_key[config.api_key] = reserved_flops
-                else:
-                    self._reserved_flops_by_api_key.pop(config.api_key, None)
                 self._inflight_runs.pop(config, None)
             inflight.event.set()
 
@@ -153,7 +152,8 @@ def assignment_error(status_code: int, message: str) -> HTTPException:
 
 
 class _InflightRun:
-    def __init__(self) -> None:
+    def __init__(self, *, reservation_id: int) -> None:
+        self.reservation_id = reservation_id
         self.event = threading.Event()
         self.result = None
         self.error: Exception | None = None

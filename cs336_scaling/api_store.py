@@ -65,6 +65,22 @@ class ApiStore:
                     UNIQUE(api_key, d_model, num_layers, num_heads, batch_size, learning_rate, train_flops),
                     FOREIGN KEY(api_key) REFERENCES api_keys(api_key)
                 );
+
+                CREATE TABLE IF NOT EXISTS reservations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    api_key TEXT NOT NULL,
+                    d_model INTEGER NOT NULL,
+                    num_layers INTEGER NOT NULL,
+                    num_heads INTEGER NOT NULL,
+                    batch_size INTEGER NOT NULL,
+                    learning_rate REAL NOT NULL,
+                    train_flops INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    failure_reason TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(api_key) REFERENCES api_keys(api_key)
+                );
                 """
             )
 
@@ -135,6 +151,113 @@ class ApiStore:
                     loss,
                 ),
             )
+
+    def create_reservation(self, config: TrainingConfig) -> int:
+        self.register_api_key(config.api_key)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO reservations(
+                    api_key, d_model, num_layers, num_heads, batch_size,
+                    learning_rate, train_flops, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                    "PENDING",
+                ),
+            )
+        return int(cursor.lastrowid)
+
+    def mark_reservation_running(self, reservation_id: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE reservations
+                SET status = 'RUNNING',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (reservation_id,),
+            )
+
+    def mark_reservation_succeeded(self, reservation_id: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE reservations
+                SET status = 'SUCCEEDED',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (reservation_id,),
+            )
+
+    def mark_reservation_failed(
+        self,
+        reservation_id: int,
+        *,
+        status: str = "FAILED",
+        failure_reason: str | None = None,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE reservations
+                SET status = ?,
+                    failure_reason = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (status, failure_reason, reservation_id),
+            )
+
+    def get_active_reserved_flops(self, api_key: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COALESCE(SUM(train_flops), 0) AS total_reserved_flops
+                FROM reservations
+                WHERE api_key = ?
+                  AND status IN ('PENDING', 'RUNNING')
+                """,
+                (api_key,),
+            ).fetchone()
+        return int(row["total_reserved_flops"]) if row is not None else 0
+
+    def recover_incomplete_reservations(self) -> int:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE reservations
+                SET status = 'FAILED_RECOVERED',
+                    failure_reason = 'Recovered on startup after an incomplete previous run.',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE status IN ('PENDING', 'RUNNING')
+                """
+            )
+        return int(cursor.rowcount)
+
+    def get_recovered_reservations(self, api_key: str) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT api_key, d_model, num_layers, num_heads, batch_size,
+                       learning_rate, train_flops, status, failure_reason
+                FROM reservations
+                WHERE api_key = ?
+                  AND status = 'FAILED_RECOVERED'
+                ORDER BY id ASC
+                """,
+                (api_key,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_total_flops_used(self, api_key: str) -> int | None:
         with self._connect() as connection:
