@@ -18,6 +18,7 @@ import requests
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_EXPERIMENT_API_KEY = "cs336_assignment3_fixed_key"
+DEFAULT_REQUEST_TIMEOUT_S = 3600
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Optional client concurrency override. Defaults to the detected local GPU count.",
+    )
+    parser.add_argument(
+        "--request-timeout-s",
+        type=float,
+        default=DEFAULT_REQUEST_TIMEOUT_S,
+        help="Per-request timeout in seconds. Defaults to 3600 seconds.",
     )
     return parser
 
@@ -116,10 +123,15 @@ def expand_requests(
     return requests_plan
 
 
-def run_request(*, base_url: str, request_plan: dict[str, Any]) -> dict[str, Any]:
+def run_request(
+    *,
+    base_url: str,
+    request_plan: dict[str, Any],
+    request_timeout_s: float,
+) -> dict[str, Any]:
     endpoint = request_plan["endpoint"].lstrip("/")
     url = f"{base_url.rstrip('/')}/{endpoint}"
-    response = requests.get(url, params=request_plan["params"], timeout=600)
+    response = requests.get(url, params=request_plan["params"], timeout=request_timeout_s)
     body_text = response.text
     try:
         body_json = response.json()
@@ -168,9 +180,17 @@ def run_requests_bounded(
     base_url: str,
     requests_plan: list[dict[str, Any]],
     max_inflight: int,
+    request_timeout_s: float,
 ) -> list[dict[str, Any]]:
     if max_inflight <= 1:
-        return [run_request(base_url=base_url, request_plan=request_plan) for request_plan in requests_plan]
+        return [
+            run_request(
+                base_url=base_url,
+                request_plan=request_plan,
+                request_timeout_s=request_timeout_s,
+            )
+            for request_plan in requests_plan
+        ]
 
     responses_by_id: dict[str, dict[str, Any]] = {}
     next_index = 0
@@ -181,7 +201,12 @@ def run_requests_bounded(
         while next_index < len(requests_plan) or inflight:
             while next_index < len(requests_plan) and len(inflight) < max_inflight:
                 request_plan = requests_plan[next_index]
-                future = executor.submit(run_request, base_url=base_url, request_plan=request_plan)
+                future = executor.submit(
+                    run_request,
+                    base_url=base_url,
+                    request_plan=request_plan,
+                    request_timeout_s=request_timeout_s,
+                )
                 inflight[future] = request_plan
                 next_index += 1
 
@@ -216,6 +241,7 @@ def main() -> None:
     shared_params = dict(raw_config.get("shared_params", {}))
     axes = load_axes(list(raw_config["axes"]))
     client_config = dict(raw_config.get("client", {}))
+    request_timeout_s = float(args.request_timeout_s)
     detected_gpu_count = detect_local_gpu_count()
     configured_max_inflight = client_config.get("max_inflight")
     if args.max_inflight is not None:
@@ -241,6 +267,7 @@ def main() -> None:
         base_url=base_url,
         requests_plan=requests_plan,
         max_inflight=max_inflight,
+        request_timeout_s=request_timeout_s,
     )
 
     payload = {
@@ -251,6 +278,7 @@ def main() -> None:
         "client": {
             "detected_local_gpu_count": detected_gpu_count,
             "max_inflight": max_inflight,
+            "request_timeout_s": request_timeout_s,
         },
         "num_requests": len(requests_plan),
         "request_plan": [
@@ -274,6 +302,7 @@ def main() -> None:
     print(f"Requests sent: {len(requests_plan)}")
     print(f"Detected local GPU count: {detected_gpu_count}")
     print(f"Client max_inflight: {max_inflight}")
+    print(f"Request timeout (s): {request_timeout_s}")
     print(f"Results path: {results_path}")
 
 
