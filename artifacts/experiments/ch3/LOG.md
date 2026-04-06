@@ -9,6 +9,10 @@ This file is the working log for Chapter 3 experiments only.
 - Use two infra modes:
   - use the managed lifecycle script for unattended or overnight runs; after a successful run it should shut down the host
   - use the existing always-on local API flow for interactive daytime runs, so the GPU lease is not released between experiments
+- Shape-family scope decision:
+  - for the main Chapter 3 scaling-law experiments, only use the 7 exact anchor-ratio shapes
+  - exact anchor ratio means `d_model / num_layers = 128`
+  - keep `head_dim = 64`, so `num_heads = d_model / 64`
 - For each experiment, record:
   - what the experiment ID is
   - what configs are being swept or fixed
@@ -65,3 +69,11 @@ This file is the working log for Chapter 3 experiments only.
   - incremental cost after the first run: `5 * 1e16 = 5e16` FLOPs
   - working family decision recorded in `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/shape_family_decision.md`
   - current anchor winner: `d_model=640, num_layers=5, num_heads=10`
+  - downstream main experiments should use only these exact anchor-ratio shapes:
+    - `(256, 2, 4)` with `N = 1,572,864`
+    - `(384, 3, 6)` with `N = 5,308,416`
+    - `(512, 4, 8)` with `N = 12,582,912`
+    - `(640, 5, 10)` with `N = 24,576,000`
+    - `(768, 6, 12)` with `N = 42,467,328`
+    - `(896, 7, 14)` with `N = 67,436,544`
+    - `(1024, 8, 16)` with `N = 100,663,296`

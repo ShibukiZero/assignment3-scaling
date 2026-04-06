@@ -50,3 +50,19 @@ For any target parameter count `N`:
 5. Clamp to the API bounds if needed.
 
 This is the operational Chapter 3 rule we will use to map a target `N` to one unique best shape.
+
+## Scope Restriction For Main Experiments
+
+To keep the Chapter 3 search space clean and interpretable, we will restrict the main scaling-law experiments to the 7 exact anchor-ratio shapes only.
+
+Those 7 exact shapes are:
+
+- `d_model=256`, `num_layers=2`, `num_heads=4`, `N=1,572,864`
+- `d_model=384`, `num_layers=3`, `num_heads=6`, `N=5,308,416`
+- `d_model=512`, `num_layers=4`, `num_heads=8`, `N=12,582,912`
+- `d_model=640`, `num_layers=5`, `num_heads=10`, `N=24,576,000`
+- `d_model=768`, `num_layers=6`, `num_heads=12`, `N=42,467,328`
+- `d_model=896`, `num_layers=7`, `num_heads=14`, `N=67,436,544`
+- `d_model=1024`, `num_layers=8`, `num_heads=16`, `N=100,663,296`
+
+All subsequent main Chapter 3 sweeps should choose `N` values only from this restricted family.
