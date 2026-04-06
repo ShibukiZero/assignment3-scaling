@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import threading
 from pathlib import Path
 
 import uvicorn
@@ -40,6 +41,9 @@ class ApiRuntime:
         self.backend = backend
         self.allowed_api_keys = set(allowed_api_keys or set())
         self.accept_all_keys = accept_all_keys
+        self._training_queue = threading.Condition()
+        self._next_ticket = 0
+        self._serving_ticket = 0
 
         for api_key in self.allowed_api_keys:
             self.store.register_api_key(api_key)
@@ -74,6 +78,37 @@ class ApiRuntime:
                     )
                 },
             )
+
+    def _wait_for_training_turn(self) -> int:
+        with self._training_queue:
+            ticket = self._next_ticket
+            self._next_ticket += 1
+            while ticket != self._serving_ticket:
+                self._training_queue.wait()
+            return ticket
+
+    def _finish_training_turn(self) -> None:
+        with self._training_queue:
+            self._serving_ticket += 1
+            self._training_queue.notify_all()
+
+    def run_training_query(self, config):
+        cached_run = self.store.get_run(config)
+        if cached_run is not None:
+            return cached_run, True
+
+        self._wait_for_training_turn()
+        try:
+            cached_run = self.store.get_run(config)
+            if cached_run is not None:
+                return cached_run, True
+
+            self.ensure_budget_available(config.api_key, config.train_flops)
+            result = self.backend.run(config)
+            self.store.insert_run(config, result.loss)
+            return result, False
+        finally:
+            self._finish_training_turn()
 
 
 def create_runtime_from_env() -> ApiRuntime:
@@ -120,21 +155,12 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         except ValueError as exc:
             raise assignment_error(404, str(exc)) from exc
 
-        cached_run = runtime.store.get_run(config)
-        if cached_run is not None:
-            total_flops_used = runtime.store.get_total_flops_used(resolved_api_key) or 0
-            return {"loss": float(cached_run.loss), "total_flops_used": float(total_flops_used)}
-
-        runtime.ensure_budget_available(resolved_api_key, config.train_flops)
-
         try:
-            result = runtime.backend.run(config)
+            result, _ = runtime.run_training_query(config)
         except BackendUnavailableError as exc:
             raise assignment_error(503, str(exc)) from exc
         except TrainingOOMError as exc:
             raise assignment_error(503, str(exc)) from exc
-
-        runtime.store.insert_run(config, result.loss)
         total_flops_used = runtime.store.get_total_flops_used(resolved_api_key) or 0
         return {"loss": float(result.loss), "total_flops_used": float(total_flops_used)}
 

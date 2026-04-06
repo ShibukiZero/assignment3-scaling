@@ -54,11 +54,9 @@ export CS336_VOCAB_SIZE="${CS336_VOCAB_SIZE:-32000}"
 export CS336_API_DB_PATH="${CS336_API_DB_PATH:-/root/autodl-tmp/api/api.db}"
 export CS336_CONTEXT_LENGTH="${CS336_CONTEXT_LENGTH:-512}"
 if [[ -z "${CS336_DEVICE:-}" ]]; then
-  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
-    export CS336_DEVICE="cuda"
-  else
-    export CS336_DEVICE="cpu"
-  fi
+  export CS336_DEVICE="$(
+    uv run python -c 'import torch; print("cuda" if torch.cuda.is_available() else "cpu")' 2>/dev/null || echo cpu
+  )"
 fi
 if [[ -z "${CS336_MIXED_PRECISION:-}" ]]; then
   if [[ "${CS336_DEVICE}" == cuda* ]]; then

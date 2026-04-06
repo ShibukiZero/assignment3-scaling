@@ -157,47 +157,56 @@ class TrainingRunner:
 
         plan = self._capped_plan(config)
         seed = _stable_seed(config)
-        random.seed(seed)
-        torch.manual_seed(seed)
-
-        model = self._build_model(config)
-        optimizer = torch.optim.AdamW(
-            model.parameters(),
-            lr=config.learning_rate,
-            weight_decay=self.weight_decay,
-        )
-        scheduler = self._make_scheduler(optimizer, plan.max_steps)
-        scaler = torch.amp.GradScaler("cuda", enabled=self.device.type == "cuda" and self.mixed_precision == "fp16")
-
-        final_loss = 0.0
-        model.train()
         rng = random.Random(seed)
-        for _ in range(plan.max_steps):
-            x, y = self._sample_batch(
-                dataset,
-                batch_size=config.batch_size,
-                context_length=self.context_length,
-                rng=rng,
+        fork_devices = []
+        if self.device.type == "cuda":
+            device_index = self.device.index
+            if device_index is None:
+                device_index = torch.cuda.current_device()
+            fork_devices = [device_index]
+        with torch.random.fork_rng(devices=fork_devices):
+            torch.manual_seed(seed)
+
+            model = self._build_model(config)
+            optimizer = torch.optim.AdamW(
+                model.parameters(),
+                lr=config.learning_rate,
+                weight_decay=self.weight_decay,
             )
-            optimizer.zero_grad(set_to_none=True)
+            scheduler = self._make_scheduler(optimizer, plan.max_steps)
+            scaler = torch.amp.GradScaler(
+                "cuda",
+                enabled=self.device.type == "cuda" and self.mixed_precision == "fp16",
+            )
 
-            with self._autocast_context():
-                logits = model(x)
-                loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
+            final_loss = 0.0
+            model.train()
+            for _ in range(plan.max_steps):
+                x, y = self._sample_batch(
+                    dataset,
+                    batch_size=config.batch_size,
+                    context_length=self.context_length,
+                    rng=rng,
+                )
+                optimizer.zero_grad(set_to_none=True)
 
-            if scaler.is_enabled():
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
-                optimizer.step()
+                with self._autocast_context():
+                    logits = model(x)
+                    loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
 
-            scheduler.step()
-            final_loss = float(loss.detach().item())
+                if scaler.is_enabled():
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                    optimizer.step()
+
+                scheduler.step()
+                final_loss = float(loss.detach().item())
 
         return TrainingRunResult(
             loss=final_loss,

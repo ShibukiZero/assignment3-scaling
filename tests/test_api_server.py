@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from cs336_scaling.api_backend import BackendUnavailableError, TrainingOOMError, TrainingResult
-from cs336_scaling.api_contract import TrainingConfig
+from cs336_scaling.api_contract import TrainingConfig, build_training_config
 from cs336_scaling.api_server import ApiRuntime, create_app
 
 
@@ -27,6 +28,22 @@ class UnavailableBackend:
 class OOMBackend:
     def run(self, config: TrainingConfig) -> TrainingResult:
         raise TrainingOOMError("Training run ran out of memory for this configuration.")
+
+
+class BlockingBackend:
+    def __init__(self, loss: float = 9.9) -> None:
+        self.loss = loss
+        self.calls = 0
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self._lock = threading.Lock()
+
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        with self._lock:
+            self.calls += 1
+            self.started.set()
+        self.release.wait(timeout=5.0)
+        return TrainingResult(loss=self.loss)
 
 
 def make_client(
@@ -368,6 +385,152 @@ def test_loss_allows_cached_queries_even_after_budget_cap_is_reached(tmp_path: P
     assert cached_again.status_code == 200
     assert cached_again.json() == {"loss": 8.0, "total_flops_used": float(int(2e18))}
     assert len(backend.calls) == 2
+
+
+def test_runtime_serializes_same_api_key_queries_to_avoid_duplicate_training(tmp_path: Path) -> None:
+    backend = BlockingBackend(loss=4.4)
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=backend,
+        accept_all_keys=True,
+    )
+    config = build_training_config(
+        api_key="thread-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e16),
+    )
+
+    results: list[tuple[float, bool]] = []
+
+    def worker() -> None:
+        result, cached = runtime.run_training_query(config)
+        results.append((result.loss, cached))
+
+    thread_a = threading.Thread(target=worker)
+    thread_b = threading.Thread(target=worker)
+    thread_a.start()
+    backend.started.wait(timeout=5.0)
+    thread_b.start()
+    backend.release.set()
+    thread_a.join(timeout=5.0)
+    thread_b.join(timeout=5.0)
+
+    assert backend.calls == 1
+    assert sorted(results) == [(4.4, False), (4.4, True)]
+
+
+def test_runtime_queues_distinct_configs_globally_while_one_training_is_running(tmp_path: Path) -> None:
+    backend = BlockingBackend(loss=6.6)
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=backend,
+        accept_all_keys=True,
+    )
+    config_a = build_training_config(
+        api_key="key-a",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e16),
+    )
+    config_b = build_training_config(
+        api_key="key-b",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=9e-4,
+        train_flops=int(3e16),
+    )
+
+    results: list[tuple[float, bool]] = []
+
+    def worker(config: TrainingConfig) -> None:
+        result, cached = runtime.run_training_query(config)
+        results.append((result.loss, cached))
+
+    thread_a = threading.Thread(target=worker, args=(config_a,))
+    thread_b = threading.Thread(target=worker, args=(config_b,))
+    thread_a.start()
+    backend.started.wait(timeout=5.0)
+    thread_b.start()
+
+    # While the first training job is still blocked, the second should remain queued.
+    assert backend.calls == 1
+
+    backend.release.set()
+    thread_a.join(timeout=5.0)
+    thread_b.join(timeout=5.0)
+
+    assert backend.calls == 2
+    assert sorted(results) == [(6.6, False), (6.6, False)]
+
+
+def test_queued_request_rechecks_budget_after_waiting(tmp_path: Path) -> None:
+    backend = BlockingBackend(loss=7.7)
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=backend,
+        accept_all_keys=True,
+    )
+    config_a = build_training_config(
+        api_key="queued-cap-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e18),
+    )
+    config_b = build_training_config(
+        api_key="queued-cap-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=9e-4,
+        train_flops=int(1e18),
+    )
+    config_c = build_training_config(
+        api_key="queued-cap-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=8e-4,
+        train_flops=int(1e13),
+    )
+
+    errors: list[str] = []
+
+    def worker(config: TrainingConfig) -> None:
+        try:
+            runtime.run_training_query(config)
+        except Exception as exc:  # noqa: BLE001 - assertion helper in tests
+            errors.append(str(exc))
+
+    thread_a = threading.Thread(target=worker, args=(config_a,))
+    thread_b = threading.Thread(target=worker, args=(config_b,))
+    thread_c = threading.Thread(target=worker, args=(config_c,))
+    thread_a.start()
+    backend.started.wait(timeout=5.0)
+    thread_b.start()
+    thread_c.start()
+    backend.release.set()
+    thread_a.join(timeout=5.0)
+    thread_b.join(timeout=5.0)
+    thread_c.join(timeout=5.0)
+
+    assert backend.calls == 2
+    assert errors == [
+        "422: {'message': 'API key would exceed the scaling law FLOPs budget cap of 2000000000000000000: queued-cap-key'}"
+    ]
 
 
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:

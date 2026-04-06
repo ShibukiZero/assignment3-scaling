@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from array import array
 from pathlib import Path
 
@@ -245,3 +246,25 @@ def test_training_runner_allows_disabling_dataset_preload(tmp_path: Path) -> Non
 
     assert runner.preload_dataset is False
     assert runner.dataset is None
+
+
+def test_training_runner_preserves_process_global_rng_state(tmp_path: Path) -> None:
+    from cs336_scaling.training_runner import TrainingRunner
+
+    meta_path = write_runner_corpus(tmp_path)
+    runner = TrainingRunner(
+        train_data_meta_path=meta_path,
+        vocab_size=32,
+        context_length=4,
+        device="cpu",
+    )
+
+    random.seed(12345)
+    torch.manual_seed(12345)
+    python_state_before = random.getstate()
+    torch_state_before = torch.random.get_rng_state()
+
+    runner.run(build_tiny_config())
+
+    assert random.getstate() == python_state_before
+    assert torch.equal(torch.random.get_rng_state(), torch_state_before)
