@@ -1,0 +1,28 @@
+# 3_1_1_shape_lr_sweep
+
+- Status: `planned`
+- Goal: select a promising shape family for Chapter 3 before running the main IsoFLOPs-style scaling-law sweeps.
+- Why this experiment:
+  - fixed-`N` shape comparison should happen before the expensive main scaling sweep
+  - each candidate shape should get a small LR sweep before we compare losses
+- Current setup:
+  - target parameter scale `N_anchor` near `2.5e7`
+  - `batch_size = 128`
+  - `train_flops = 1e16`
+  - compare candidate shapes by sweeping `learning_rate`
+- Candidate shapes:
+  - `d_model=384, num_layers=14, num_heads=6`
+  - `d_model=512, num_layers=8, num_heads=8`
+  - `d_model=640, num_layers=5, num_heads=10`
+  - `d_model=768, num_layers=4, num_heads=12`
+  - `d_model=1024, num_layers=2, num_heads=16`
+- LR grid:
+  - `1e-4`
+  - `2e-4`
+  - `4e-4`
+  - `8e-4`
+- Planned budget:
+  - `5 * 4 * 1e16 = 2e17` FLOPs
+- Grid file:
+  - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
+- Final outputs for this experiment should be stored directly in this directory.
