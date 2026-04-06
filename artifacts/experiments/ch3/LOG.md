@@ -44,6 +44,7 @@ This file is the working log for Chapter 3 experiments only.
     - `2e-4`
     - `4e-4`
     - `8e-4`
+    - `1e-3`
 - Why we are doing it:
   - we want a first shape comparison at fixed parameter scale
   - we want each candidate shape to get a fair LR sweep before we compare losses
@@ -56,4 +57,5 @@ This file is the working log for Chapter 3 experiments only.
   - planned
   - grid file prepared at `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
   - runtime defaults live in `scripts/run_api_experiment_grid.py`
-  - total planned round-1 budget: `5 * 4 * 1e16 = 2e17` FLOPs
+  - full grid budget: `5 * 5 * 1e16 = 2.5e17` FLOPs
+  - incremental cost after the first run: `5 * 1e16 = 5e16` FLOPs

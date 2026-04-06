@@ -28,8 +28,10 @@
   - `2e-4`
   - `4e-4`
   - `8e-4`
+  - `1e-3`
 - Planned budget:
-  - `5 * 4 * 1e16 = 2e17` FLOPs
+  - full grid: `5 * 5 * 1e16 = 2.5e17` FLOPs
+  - incremental cost after the first run: `5 * 1e16 = 5e16` FLOPs
 - Grid file:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
 - The runner writes `results.json` directly into this directory by default.

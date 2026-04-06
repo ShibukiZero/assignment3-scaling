@@ -80,6 +80,12 @@
           "params": {
             "learning_rate": 0.0008
           }
+        },
+        {
+          "id": "lr_1e-3",
+          "params": {
+            "learning_rate": 0.001
+          }
         }
       ]
     }
