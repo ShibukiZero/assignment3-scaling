@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -13,6 +14,8 @@ import torch
 from cs336_scaling.api_contract import TrainingConfig, estimate_non_embedding_parameters, estimate_train_tokens
 from cs336_scaling.token_dataset import TokenizedDataset
 from cs336_scaling.training_runner import TrainingRunner
+
+logger = logging.getLogger(__name__)
 
 
 class BackendUnavailableError(RuntimeError):
@@ -36,6 +39,12 @@ class TrainingBackend(Protocol):
     def begin_shutdown(self) -> None: ...
 
     def wait_for_shutdown(self, timeout: float | None = None) -> bool: ...
+
+
+class RunnerProtocol(Protocol):
+    device: torch.device
+
+    def run(self, config: TrainingConfig): ...
 
 
 class PlaceholderTrainingBackend:
@@ -92,28 +101,33 @@ class TorchTrainingBackend:
         activation_checkpointing: bool = False,
         preload_dataset: bool = True,
         max_steps_cap: int | None = None,
+        runners: list[RunnerProtocol] | None = None,
     ) -> None:
         self.train_data_meta_path = Path(train_data_meta_path).expanduser()
-        self.device_specs = devices or _resolve_device_specs(device)
-        shared_dataset = (
-            TokenizedDataset.from_meta(self.train_data_meta_path)
-            if preload_dataset
-            else None
-        )
-        self.runners = [
-            TrainingRunner(
-                train_data_meta_path=self.train_data_meta_path,
-                vocab_size=vocab_size,
-                context_length=context_length,
-                device=device_spec,
-                mixed_precision=mixed_precision,
-                activation_checkpointing=activation_checkpointing,
-                preload_dataset=preload_dataset,
-                dataset=shared_dataset,
-                max_steps_cap=max_steps_cap,
+        if runners is not None:
+            self.runners = list(runners)
+            self.device_specs = [str(runner.device) for runner in self.runners]
+        else:
+            self.device_specs = devices or _resolve_device_specs(device)
+            shared_dataset = (
+                TokenizedDataset.from_meta(self.train_data_meta_path)
+                if preload_dataset
+                else None
             )
-            for device_spec in self.device_specs
-        ]
+            self.runners = [
+                TrainingRunner(
+                    train_data_meta_path=self.train_data_meta_path,
+                    vocab_size=vocab_size,
+                    context_length=context_length,
+                    device=device_spec,
+                    mixed_precision=mixed_precision,
+                    activation_checkpointing=activation_checkpointing,
+                    preload_dataset=preload_dataset,
+                    dataset=shared_dataset,
+                    max_steps_cap=max_steps_cap,
+                )
+                for device_spec in self.device_specs
+            ]
         self.runner = self.runners[0]
         self.max_concurrency = len(self.runners)
         self._queue: deque[_WorkerJob] = deque()
@@ -123,7 +137,7 @@ class TorchTrainingBackend:
         self._workers = [
             threading.Thread(
                 target=self._worker_loop,
-                args=(runner,),
+                args=(index, runner),
                 daemon=True,
                 name=f"training-backend-worker-{index}",
             )
@@ -132,7 +146,7 @@ class TorchTrainingBackend:
         for worker in self._workers:
             worker.start()
 
-    def _worker_loop(self, runner: TrainingRunner) -> None:
+    def _worker_loop(self, worker_index: int, runner: RunnerProtocol) -> None:
         while True:
             with self._condition:
                 while not self._queue:
@@ -143,10 +157,35 @@ class TorchTrainingBackend:
                 self._running_jobs += 1
 
             try:
+                logger.info(
+                    "backend worker %s on %s starting job for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                    worker_index,
+                    runner.device,
+                    job.config.api_key,
+                    job.config.d_model,
+                    job.config.num_layers,
+                    job.config.num_heads,
+                    job.config.batch_size,
+                    job.config.learning_rate,
+                    job.config.train_flops,
+                )
                 run_result = runner.run(job.config)
                 job.result = TrainingResult(loss=run_result.loss)
+                logger.info(
+                    "backend worker %s on %s finished job for api_key=%s with loss=%s",
+                    worker_index,
+                    runner.device,
+                    job.config.api_key,
+                    job.result.loss,
+                )
             except Exception as exc:  # noqa: BLE001 - propagate through the waiting request
                 job.error = exc
+                logger.exception(
+                    "backend worker %s on %s failed job for api_key=%s",
+                    worker_index,
+                    runner.device,
+                    job.config.api_key,
+                )
             finally:
                 job.event.set()
                 with self._condition:

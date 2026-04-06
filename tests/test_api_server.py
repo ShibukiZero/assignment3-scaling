@@ -63,13 +63,19 @@ class BlockingBackend:
         self.started = threading.Event()
         self.release = threading.Event()
         self._lock = threading.Lock()
+        self._calls_changed = threading.Condition(self._lock)
 
     def run(self, config: TrainingConfig) -> TrainingResult:
         with self._lock:
             self.calls += 1
             self.started.set()
+            self._calls_changed.notify_all()
         self.release.wait(timeout=5.0)
         return TrainingResult(loss=self.loss)
+
+    def wait_for_calls(self, expected_calls: int, timeout: float = 5.0) -> bool:
+        with self._lock:
+            return self._calls_changed.wait_for(lambda: self.calls >= expected_calls, timeout=timeout)
 
     def begin_shutdown(self) -> None:
         return None
@@ -89,6 +95,7 @@ class ConcurrentBlockingBackend:
         self.started = threading.Event()
         self.release = threading.Event()
         self._lock = threading.Lock()
+        self._active_changed = threading.Condition(self._lock)
 
     def run(self, config: TrainingConfig) -> TrainingResult:
         with self._lock:
@@ -96,10 +103,19 @@ class ConcurrentBlockingBackend:
             self.active_calls += 1
             self.max_active_calls = max(self.max_active_calls, self.active_calls)
             self.started.set()
+            self._active_changed.notify_all()
         self.release.wait(timeout=5.0)
         with self._lock:
             self.active_calls -= 1
+            self._active_changed.notify_all()
         return TrainingResult(loss=self.loss)
+
+    def wait_for_active_calls(self, expected_calls: int, timeout: float = 5.0) -> bool:
+        with self._lock:
+            return self._active_changed.wait_for(
+                lambda: self.active_calls >= expected_calls or self.max_active_calls >= expected_calls,
+                timeout=timeout,
+            )
 
     def begin_shutdown(self) -> None:
         return None
@@ -593,6 +609,7 @@ def test_runtime_allows_distinct_configs_to_enter_backend_concurrently(tmp_path:
     thread_a.start()
     backend.started.wait(timeout=5.0)
     thread_b.start()
+    backend.wait_for_active_calls(2, timeout=5.0)
     backend.release.set()
     thread_a.join(timeout=5.0)
     thread_b.join(timeout=5.0)
@@ -647,10 +664,11 @@ def test_runtime_counts_reserved_flops_when_validating_new_queries(tmp_path: Pat
 
     thread_a = threading.Thread(target=worker, args=(config_a,))
     thread_b = threading.Thread(target=worker, args=(config_b,))
-    thread_c = threading.Thread(target=worker, args=(config_c,))
     thread_a.start()
     backend.started.wait(timeout=5.0)
     thread_b.start()
+    backend.wait_for_calls(2, timeout=5.0)
+    thread_c = threading.Thread(target=worker, args=(config_c,))
     thread_c.start()
     backend.release.set()
     thread_a.join(timeout=5.0)
