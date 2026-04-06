@@ -57,6 +57,10 @@ def log_progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
+def path_for_metadata(*, target_path: Path, meta_path: Path) -> str:
+    return str(target_path.relative_to(meta_path.parent))
+
+
 def path_looks_supported(path: Path) -> bool:
     name = path.name.lower()
     return name.endswith(
@@ -550,8 +554,8 @@ def encode_corpus_to_binary(
         "num_input_files": num_files,
         "num_documents": num_documents,
         "num_tokens": num_tokens,
-        "ids_path": str(ids_path),
-        "idx_path": str(idx_path),
+        "ids_path": path_for_metadata(target_path=ids_path, meta_path=meta_path),
+        "idx_path": path_for_metadata(target_path=idx_path, meta_path=meta_path),
         "dtype": "uint16" if token_array_type == "H" else "uint32",
         "append_eod": append_eod,
         "eod_token": eod_token if append_eod else None,

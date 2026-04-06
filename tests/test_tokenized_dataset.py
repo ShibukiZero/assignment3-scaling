@@ -127,3 +127,14 @@ def test_tokenized_dataset_rejects_token_block_past_end_of_corpus(tmp_path: Path
 
     with pytest.raises(IndexError):
         dataset.get_token_block(start=7, length=3)
+
+
+def test_encode_metadata_paths_are_local_to_meta_file_even_for_nested_relative_prefixes() -> None:
+    from cs336_scaling.tokenization import path_for_metadata
+
+    meta_path = Path("artifacts/train.meta.json")
+    ids_path = Path("artifacts/train.bin")
+    idx_path = Path("artifacts/train.idx")
+
+    assert path_for_metadata(target_path=ids_path, meta_path=meta_path) == "train.bin"
+    assert path_for_metadata(target_path=idx_path, meta_path=meta_path) == "train.idx"
