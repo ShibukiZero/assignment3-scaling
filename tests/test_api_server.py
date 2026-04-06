@@ -260,6 +260,15 @@ def test_loss_rejects_invalid_hyperparameter_with_assignment_style_message(tmp_p
     assert response.json() == {"detail": {"message": "d_model must be in range [64, 1024], got 9999"}}
 
 
+def test_loss_rejects_empty_api_key_as_client_error(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    response = client.get("/loss", params=build_query(api_key=""))
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": {"message": "api_key must be provided."}}
+
+
 def test_loss_rejects_num_layers_out_of_range(tmp_path: Path) -> None:
     client, _ = make_client(tmp_path)
 
@@ -403,6 +412,18 @@ def test_previous_runs_requires_existing_history(tmp_path: Path) -> None:
 
     assert response.status_code == 422
     assert response.json() == {"detail": {"message": "API key has no queries yet: fresh-key"}}
+
+
+def test_history_endpoints_reject_empty_api_key_as_client_error(tmp_path: Path) -> None:
+    client, _ = make_client(tmp_path)
+
+    total_response = client.get("/total_flops_used", params={"api_key": ""})
+    history_response = client.get("/previous_runs", params={"api_key": ""})
+
+    assert total_response.status_code == 422
+    assert total_response.json() == {"detail": {"message": "api_key must be provided."}}
+    assert history_response.status_code == 422
+    assert history_response.json() == {"detail": {"message": "api_key must be provided."}}
 
 
 def test_invalid_api_key_is_rejected_when_allowlist_mode_is_enabled(tmp_path: Path) -> None:
@@ -870,6 +891,31 @@ def test_recovered_reservations_do_not_block_future_budget_usage(tmp_path: Path)
     )
 
     runtime.ensure_budget_available("recover-budget-key", int(2e18))
+
+
+def test_finalize_successful_run_clears_reserved_flops_when_completed_flops_are_recorded(tmp_path: Path) -> None:
+    store = ApiStore(tmp_path / "api.db")
+    config = build_training_config(
+        api_key="finalize-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e18),
+    )
+    reservation_id = store.create_reservation(config)
+    store.mark_reservation_running(reservation_id)
+
+    assert store.get_active_reserved_flops("finalize-key") == int(1e18)
+    assert store.get_total_flops_used("finalize-key") is None
+
+    store.finalize_successful_run(config, 6.7, reservation_id)
+
+    assert store.get_active_reserved_flops("finalize-key") == 0
+    assert store.get_total_flops_used("finalize-key") == int(1e18)
+    reservations = store.get_reservations(api_key="finalize-key", limit=10)
+    assert reservations[0].status == "SUCCEEDED"
 
 
 def test_admin_reservations_exposes_status_counts_and_entries_for_api_key(tmp_path: Path) -> None:

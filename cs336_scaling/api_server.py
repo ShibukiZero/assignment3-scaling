@@ -202,8 +202,7 @@ class ApiRuntime:
             self.store.mark_reservation_running(inflight.reservation_id)
             logger.info("reservation=%s marked RUNNING for api_key=%s", inflight.reservation_id, config.api_key)
             result = self.backend.run(config)
-            self.store.insert_run(config, result.loss)
-            self.store.mark_reservation_succeeded(inflight.reservation_id)
+            self.store.finalize_successful_run(config, result.loss, inflight.reservation_id)
             logger.info(
                 "reservation=%s marked SUCCEEDED for api_key=%s loss=%s",
                 inflight.reservation_id,
@@ -269,8 +268,8 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         train_flops: int = Query(...),
         api_key: str = Query(...),
     ) -> dict[str, float]:
-        resolved_api_key = runtime.ensure_valid_api_key(api_key)
         try:
+            resolved_api_key = runtime.ensure_valid_api_key(api_key)
             config = build_training_config(
                 api_key=resolved_api_key,
                 d_model=d_model,
@@ -294,7 +293,10 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
 
     @app.get("/total_flops_used")
     def get_total_flops_used(api_key: str = Query(...)) -> float:
-        resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+        try:
+            resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+        except ValueError as exc:
+            raise assignment_error(422, str(exc)) from exc
         total_flops_used = runtime.store.get_total_flops_used(resolved_api_key)
         if total_flops_used is None:
             raise assignment_error(422, f"API key has no queries yet: {resolved_api_key}")
@@ -302,7 +304,10 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
 
     @app.get("/previous_runs")
     def get_previous_runs(api_key: str = Query(...)) -> dict[str, list[dict[str, float | int]]]:
-        resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+        try:
+            resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+        except ValueError as exc:
+            raise assignment_error(422, str(exc)) from exc
         previous_runs = runtime.store.get_previous_runs(resolved_api_key)
         if not previous_runs:
             raise assignment_error(422, f"API key has no queries yet: {resolved_api_key}")
@@ -325,7 +330,10 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         limit: int = Query(default=100, ge=1, le=1000),
     ) -> dict[str, object]:
         if api_key is not None:
-            resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+            try:
+                resolved_api_key = runtime.ensure_api_key_for_history(api_key)
+            except ValueError as exc:
+                raise assignment_error(422, str(exc)) from exc
         else:
             resolved_api_key = None
 
