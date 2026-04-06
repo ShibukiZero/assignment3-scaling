@@ -37,6 +37,7 @@
 - The runner writes `results.json` directly into this directory by default.
 - Final conclusion:
   - see `shape_family_decision.md` in this directory
+  - `scripts/suggest_model_shapes.py <N>` returns the unique best shape for a target parameter count
 - Recommended command:
   - `./scripts/run_managed_api_experiment.sh artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
   - by default, the managed script powers off the host after a successful unattended run

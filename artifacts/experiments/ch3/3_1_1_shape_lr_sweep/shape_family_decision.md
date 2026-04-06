@@ -49,4 +49,4 @@ For any target parameter count `N`:
 4. Recompute `num_layers = round(N / (12 * d_model^2))`.
 5. Clamp to the API bounds if needed.
 
-This is the operational Chapter 3 rule we will use to map a target `N` to one unique main shape and a few nearby fallback candidates.
+This is the operational Chapter 3 rule we will use to map a target `N` to one unique best shape.

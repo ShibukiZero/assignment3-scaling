@@ -37,20 +37,14 @@ class ShapeCandidate:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Given a target non-embedding parameter count N, suggest the top legal Chapter 3 "
-            "shape candidates under the current deterministic shape family."
+            "Given a target non-embedding parameter count N, return the unique main Chapter 3 "
+            "shape under the current deterministic shape family."
         )
     )
     parser.add_argument(
         "target_n",
         type=float,
         help="Target non-embedding parameter count.",
-    )
-    parser.add_argument(
-        "--top-k",
-        type=int,
-        default=3,
-        help="Number of shape candidates to print.",
     )
     parser.add_argument(
         "--json",
@@ -91,7 +85,7 @@ def score_candidate(
     return score, relative_parameter_error
 
 
-def suggest_shapes(target_n: float, top_k: int) -> list[ShapeCandidate]:
+def suggest_shape(target_n: float) -> ShapeCandidate:
     ideal_d_model, ideal_num_layers, _ = estimate_continuous_family(target_n)
     candidates: dict[tuple[int, int, int], ShapeCandidate] = {}
 
@@ -136,16 +130,15 @@ def suggest_shapes(target_n: float, top_k: int) -> list[ShapeCandidate]:
             abs(candidate.d_model - ideal_d_model),
         ),
     )
-    return ranked[:top_k]
+    return ranked[0]
 
 
 def main() -> None:
     args = build_parser().parse_args()
     target_n = float(args.target_n)
-    top_k = max(1, int(args.top_k))
 
     ideal_d_model, ideal_num_layers, ideal_num_heads = estimate_continuous_family(target_n)
-    suggestions = suggest_shapes(target_n=target_n, top_k=top_k)
+    best_shape = suggest_shape(target_n=target_n)
 
     payload = {
         "target_n": target_n,
@@ -154,7 +147,7 @@ def main() -> None:
             "num_layers": ideal_num_layers,
             "num_heads": ideal_num_heads,
         },
-        "suggestions": [asdict(candidate) for candidate in suggestions],
+        "best_shape": asdict(best_shape),
     }
 
     if args.json:
@@ -168,16 +161,15 @@ def main() -> None:
         f"num_layers={ideal_num_layers:.2f}, "
         f"num_heads={ideal_num_heads:.2f}"
     )
-    print("Top shape candidates:")
-    for index, candidate in enumerate(suggestions, start=1):
-        print(
-            f"{index}. d_model={candidate.d_model}, "
-            f"num_layers={candidate.num_layers}, "
-            f"num_heads={candidate.num_heads}, "
-            f"N={candidate.estimated_parameters}, "
-            f"relative_parameter_error={candidate.relative_parameter_error:+.4%}, "
-            f"family_score={candidate.family_score:.6f}"
-        )
+    print("Best shape:")
+    print(
+        f"d_model={best_shape.d_model}, "
+        f"num_layers={best_shape.num_layers}, "
+        f"num_heads={best_shape.num_heads}, "
+        f"N={best_shape.estimated_parameters}, "
+        f"relative_parameter_error={best_shape.relative_parameter_error:+.4%}, "
+        f"family_score={best_shape.family_score:.6f}"
+    )
 
 
 if __name__ == "__main__":
