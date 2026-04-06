@@ -1,0 +1,33 @@
+# 3_2_1_bs_lr_joint_sweep
+
+- Status: `planned`
+- Goal: learn how the best `(batch_size, learning_rate)` combination changes with model size `N` under the exact anchor-ratio family.
+- Why this experiment:
+  - `batch_size` and `learning_rate` may be coupled
+  - we want to measure the joint optimum instead of tuning them separately
+  - we restrict the shape family to the 7 exact anchor-ratio points to keep the search interpretable
+- Current setup:
+  - exact family shapes only:
+    - `d_model=256, num_layers=2, num_heads=4`
+    - `d_model=384, num_layers=3, num_heads=6`
+    - `d_model=512, num_layers=4, num_heads=8`
+    - `d_model=640, num_layers=5, num_heads=10`
+    - `d_model=768, num_layers=6, num_heads=12`
+    - `d_model=896, num_layers=7, num_heads=14`
+    - `d_model=1024, num_layers=8, num_heads=16`
+  - fixed `train_flops = 1e16`
+  - batch-size grid:
+    - `128`
+    - `256`
+  - learning-rate grid:
+    - `6e-4`
+    - `8e-4`
+    - `1e-3`
+  - fixed runner defaults:
+    - `base_url = http://127.0.0.1:8000`
+    - `api_key = cs336_assignment3_fixed_key`
+- Planned budget:
+  - `7 * 2 * 3 * 1e16 = 4.2e17` FLOPs
+- Grid file:
+  - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/grid.json`
+- The runner writes `results.json` directly into this directory by default.

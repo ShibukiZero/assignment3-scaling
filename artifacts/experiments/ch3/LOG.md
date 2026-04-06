@@ -77,3 +77,30 @@ This file is the working log for Chapter 3 experiments only.
     - `(768, 6, 12)` with `N = 42,467,328`
     - `(896, 7, 14)` with `N = 67,436,544`
     - `(1024, 8, 16)` with `N = 100,663,296`
+
+## `3_2_1_bs_lr_joint_sweep`
+
+- Experiment ID: `3_2_1_bs_lr_joint_sweep`
+- What this experiment is:
+  - the first joint `(batch_size, learning_rate)` experiment across model sizes
+  - a calibration step before the main IsoFLOPs-style sweeps
+- Config:
+  - use only the 7 exact anchor-ratio shapes
+  - fixed `train_flops = 1e16`
+  - batch-size grid:
+    - `128`
+    - `256`
+  - learning-rate grid:
+    - `6e-4`
+    - `8e-4`
+    - `1e-3`
+- Why we are doing it:
+  - `batch_size` and `learning_rate` may interact
+  - we want to find a good joint rule `(bs, lr)` as a function of `N`
+  - we do not want to assume that the best LR at `bs=128` will transfer unchanged to `bs=256`
+- Output directory:
+  - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/grid.json`
+  - total planned budget: `7 * 2 * 3 * 1e16 = 4.2e17` FLOPs

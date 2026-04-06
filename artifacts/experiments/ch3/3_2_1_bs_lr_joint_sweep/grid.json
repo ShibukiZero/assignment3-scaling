@@ -1,0 +1,113 @@
+{
+  "experiment_id": "3_2_1_bs_lr_joint_sweep",
+  "endpoint": "/loss",
+  "client": {
+    "max_inflight": 0
+  },
+  "shared_params": {
+    "train_flops": 10000000000000000
+  },
+  "axes": [
+    {
+      "name": "shape",
+      "values": [
+        {
+          "id": "shape_256_2_4",
+          "params": {
+            "d_model": 256,
+            "num_layers": 2,
+            "num_heads": 4
+          }
+        },
+        {
+          "id": "shape_384_3_6",
+          "params": {
+            "d_model": 384,
+            "num_layers": 3,
+            "num_heads": 6
+          }
+        },
+        {
+          "id": "shape_512_4_8",
+          "params": {
+            "d_model": 512,
+            "num_layers": 4,
+            "num_heads": 8
+          }
+        },
+        {
+          "id": "shape_640_5_10",
+          "params": {
+            "d_model": 640,
+            "num_layers": 5,
+            "num_heads": 10
+          }
+        },
+        {
+          "id": "shape_768_6_12",
+          "params": {
+            "d_model": 768,
+            "num_layers": 6,
+            "num_heads": 12
+          }
+        },
+        {
+          "id": "shape_896_7_14",
+          "params": {
+            "d_model": 896,
+            "num_layers": 7,
+            "num_heads": 14
+          }
+        },
+        {
+          "id": "shape_1024_8_16",
+          "params": {
+            "d_model": 1024,
+            "num_layers": 8,
+            "num_heads": 16
+          }
+        }
+      ]
+    },
+    {
+      "name": "batch_size",
+      "values": [
+        {
+          "id": "bs_128",
+          "params": {
+            "batch_size": 128
+          }
+        },
+        {
+          "id": "bs_256",
+          "params": {
+            "batch_size": 256
+          }
+        }
+      ]
+    },
+    {
+      "name": "learning_rate",
+      "values": [
+        {
+          "id": "lr_6e-4",
+          "params": {
+            "learning_rate": 0.0006
+          }
+        },
+        {
+          "id": "lr_8e-4",
+          "params": {
+            "learning_rate": 0.0008
+          }
+        },
+        {
+          "id": "lr_1e-3",
+          "params": {
+            "learning_rate": 0.001
+          }
+        }
+      ]
+    }
+  ]
+}
