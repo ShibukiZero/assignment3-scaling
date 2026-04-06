@@ -209,8 +209,9 @@ When you start the service with `./scripts/start_api.sh`, the current defaults a
 
 When you start the service with `./scripts/start_api.sh --daemon`, the script also:
 
-- writes logs under `/root/autodl-tmp/api-logs/`
+- writes logs to `/root/autodl-tmp/api-logs/api-<port>.log`
 - writes a PID file at `/root/autodl-tmp/api-logs/api-<port>.pid`
+- overwrites the previous log file for that port on each daemon launch
 - exits immediately after the server has been launched in the background
 
 ### Current backend status
@@ -334,7 +335,7 @@ To inspect a background launch:
 ```sh
 ls -lt /root/autodl-tmp/api-logs/
 cat /root/autodl-tmp/api-logs/api-8000.pid
-tail -f /root/autodl-tmp/api-logs/api-8000-*.log
+tail -f /root/autodl-tmp/api-logs/api-8000.log
 ```
 
 To stop a daemonized server:

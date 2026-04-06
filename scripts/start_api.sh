@@ -112,10 +112,10 @@ fi
 echo "[start_api] host=0.0.0.0 port=${PORT}"
 
 if [[ "${DAEMON_MODE}" == "1" ]]; then
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  log_path="${CS336_LOG_DIR}/api-${PORT}-${timestamp}.log"
+  log_path="${CS336_LOG_DIR}/api-${PORT}.log"
   pid_path="${CS336_LOG_DIR}/api-${PORT}.pid"
   echo "[start_api] daemon_log=${log_path}"
+  : > "${log_path}"
   nohup uv run python -m cs336_scaling.api_server --host 0.0.0.0 --port "${PORT}" >"${log_path}" 2>&1 &
   server_pid=$!
   printf '%s\n' "${server_pid}" > "${pid_path}"
