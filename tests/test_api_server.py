@@ -126,6 +126,28 @@ class ConcurrentBlockingBackend:
         return True
 
 
+class LockstepBackend:
+    max_concurrency = 1
+
+    def __init__(self, loss: float = 4.5) -> None:
+        self.loss = loss
+        self.calls = 0
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        self.calls += 1
+        self.started.set()
+        self.release.wait(timeout=5.0)
+        return TrainingResult(loss=self.loss)
+
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
+
 class ShutdownAwareBackend:
     max_concurrency = 1
 
@@ -572,6 +594,49 @@ def test_runtime_serializes_same_api_key_queries_to_avoid_duplicate_training(tmp
 
     assert backend.calls == 1
     assert sorted(results) == [(4.4, False), (4.4, True)]
+
+
+def test_runtime_rechecks_cache_inside_lock_after_inflight_run_completes(tmp_path: Path) -> None:
+    backend = LockstepBackend(loss=5.6)
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=backend,
+        accept_all_keys=True,
+    )
+    config = build_training_config(
+        api_key="late-cache-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e16),
+    )
+
+    first_result: list[tuple[float, bool]] = []
+
+    def first_worker() -> None:
+        result, cached = runtime.run_training_query(config)
+        first_result.append((result.loss, cached))
+
+    thread = threading.Thread(target=first_worker)
+    thread.start()
+    assert backend.started.wait(timeout=5.0)
+
+    # Simulate a second request that missed the cache earlier, then resumes after
+    # the first owner has already completed and cleared the inflight entry.
+    cached_before_lock = runtime.store.get_run(config)
+    assert cached_before_lock is None
+
+    backend.release.set()
+    thread.join(timeout=5.0)
+    assert first_result == [(5.6, False)]
+
+    second_result, second_cached = runtime.run_training_query(config)
+
+    assert backend.calls == 1
+    assert second_result.loss == 5.6
+    assert second_cached is True
 
 
 def test_runtime_allows_distinct_configs_to_enter_backend_concurrently(tmp_path: Path) -> None:

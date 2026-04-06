@@ -146,6 +146,19 @@ class ApiRuntime:
                     config.train_flops,
                 )
                 raise BackendUnavailableError("Training backend is shutting down.")
+            cached_run = self.store.get_run(config)
+            if cached_run is not None:
+                logger.info(
+                    "cache hit after lock for api_key=%s d_model=%s layers=%s heads=%s batch=%s lr=%s flops=%s",
+                    config.api_key,
+                    config.d_model,
+                    config.num_layers,
+                    config.num_heads,
+                    config.batch_size,
+                    config.learning_rate,
+                    config.train_flops,
+                )
+                return cached_run, True
             inflight = self._inflight_runs.get(config)
             if inflight is None:
                 self.ensure_budget_available(config.api_key, config.train_flops)
