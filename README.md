@@ -192,6 +192,7 @@ Optional environment variables:
 - `CS336_MIXED_PRECISION`: mixed precision mode, one of `off`, `bf16`, or `fp16`
 - `CS336_ACTIVATION_CHECKPOINTING`: `1` to enable checkpointing, `0` to disable it
 - `CS336_PRELOAD_DATASET`: `1` to preload the tokenized corpus into RAM on startup, `0` to lazy-load it per request
+- `CS336_DEVICES`: optional comma-separated device list such as `cuda:0,cuda:1`
 - `CS336_MAX_STEPS_CAP`: optional hard cap on training steps for smoke tests or CPU debugging
 - `CS336_LOG_DIR`: directory for daemon logs and PID files (default `/root/autodl-tmp/api-logs`)
 
@@ -203,6 +204,7 @@ When you start the service with `./scripts/start_api.sh`, the current defaults a
 - use `bf16` automatically on CUDA runs
 - enable activation checkpointing automatically on CUDA runs
 - preload the tokenized dataset into RAM on startup
+- if `CS336_DEVICE=cuda`, use all visible CUDA devices by default
 - accept any non-empty API key unless allowlist mode is enabled
 
 When you start the service with `./scripts/start_api.sh --daemon`, the script also:
@@ -220,7 +222,9 @@ The current mainline now supports:
 - tokenized dataset loading from `.bin/.idx/.meta.json`
 - training-budget planning from the handout approximation
 - a minimal real backend that returns final **training loss**
+- worker-pool execution across all visible CUDA devices
 - graceful request-level OOM handling so a single oversized query does not crash the whole service
+- graceful shutdown that lets running jobs finish while rejecting queued and new requests
 
 The current GPU path has been smoke-tested on the largest handout-legal configuration:
 
@@ -344,6 +348,9 @@ Or for a non-default port:
 ```sh
 ./scripts/stop_api.sh 8001
 ```
+
+The stop script first asks the local admin shutdown endpoint to drain running jobs gracefully. If
+the endpoint is unavailable, it falls back to `SIGTERM`.
 
 ### Reset the local API database
 

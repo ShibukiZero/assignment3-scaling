@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import threading
 from pathlib import Path
 
@@ -41,9 +42,10 @@ class ApiRuntime:
         self.backend = backend
         self.allowed_api_keys = set(allowed_api_keys or set())
         self.accept_all_keys = accept_all_keys
-        self._training_queue = threading.Condition()
-        self._next_ticket = 0
-        self._serving_ticket = 0
+        self._state_lock = threading.Lock()
+        self._shutting_down = False
+        self._inflight_runs: dict[object, _InflightRun] = {}
+        self._reserved_flops_by_api_key: dict[str, int] = {}
 
         for api_key in self.allowed_api_keys:
             self.store.register_api_key(api_key)
@@ -68,7 +70,8 @@ class ApiRuntime:
 
     def ensure_budget_available(self, api_key: str, additional_flops: int) -> None:
         total_flops_used = self.store.get_total_flops_used(api_key) or 0
-        if total_flops_used + additional_flops > SCALING_LAW_FLOPS_BUDGET_CAP:
+        reserved_flops = self._reserved_flops_by_api_key.get(api_key, 0)
+        if total_flops_used + reserved_flops + additional_flops > SCALING_LAW_FLOPS_BUDGET_CAP:
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -79,36 +82,58 @@ class ApiRuntime:
                 },
             )
 
-    def _wait_for_training_turn(self) -> int:
-        with self._training_queue:
-            ticket = self._next_ticket
-            self._next_ticket += 1
-            while ticket != self._serving_ticket:
-                self._training_queue.wait()
-            return ticket
+    def begin_shutdown(self) -> None:
+        with self._state_lock:
+            self._shutting_down = True
+        self.backend.begin_shutdown()
 
-    def _finish_training_turn(self) -> None:
-        with self._training_queue:
-            self._serving_ticket += 1
-            self._training_queue.notify_all()
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return self.backend.wait_for_shutdown(timeout=timeout)
 
     def run_training_query(self, config):
         cached_run = self.store.get_run(config)
         if cached_run is not None:
             return cached_run, True
 
-        self._wait_for_training_turn()
-        try:
-            cached_run = self.store.get_run(config)
-            if cached_run is not None:
-                return cached_run, True
+        with self._state_lock:
+            if self._shutting_down:
+                raise BackendUnavailableError("Training backend is shutting down.")
+            inflight = self._inflight_runs.get(config)
+            if inflight is None:
+                self.ensure_budget_available(config.api_key, config.train_flops)
+                inflight = _InflightRun()
+                self._inflight_runs[config] = inflight
+                self._reserved_flops_by_api_key[config.api_key] = (
+                    self._reserved_flops_by_api_key.get(config.api_key, 0) + config.train_flops
+                )
+                is_owner = True
+            else:
+                is_owner = False
 
-            self.ensure_budget_available(config.api_key, config.train_flops)
+        if not is_owner:
+            inflight.event.wait()
+            if inflight.error is not None:
+                raise inflight.error
+            assert inflight.result is not None
+            return inflight.result, True
+
+        try:
             result = self.backend.run(config)
             self.store.insert_run(config, result.loss)
+            inflight.result = result
             return result, False
+        except Exception as exc:
+            inflight.error = exc
+            raise
         finally:
-            self._finish_training_turn()
+            with self._state_lock:
+                reserved_flops = self._reserved_flops_by_api_key.get(config.api_key, 0) - config.train_flops
+                if reserved_flops > 0:
+                    self._reserved_flops_by_api_key[config.api_key] = reserved_flops
+                else:
+                    self._reserved_flops_by_api_key.pop(config.api_key, None)
+                self._inflight_runs.pop(config, None)
+            inflight.event.set()
 
 
 def create_runtime_from_env() -> ApiRuntime:
@@ -125,6 +150,13 @@ def create_runtime_from_env() -> ApiRuntime:
 
 def assignment_error(status_code: int, message: str) -> HTTPException:
     return HTTPException(status_code=status_code, detail={"message": message})
+
+
+class _InflightRun:
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.result = None
+        self.error: Exception | None = None
 
 
 def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
@@ -179,6 +211,17 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
         if not previous_runs:
             raise assignment_error(422, f"API key has no queries yet: {resolved_api_key}")
         return {"previous_runs": [run.to_public_dict() for run in previous_runs]}
+
+    @app.post("/__admin__/shutdown")
+    def admin_shutdown() -> dict[str, str]:
+        runtime.begin_shutdown()
+
+        def _drain_and_stop() -> None:
+            runtime.wait_for_shutdown(timeout=None)
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        threading.Thread(target=_drain_and_stop, daemon=True).start()
+        return {"message": "Shutdown initiated."}
 
     return app
 

@@ -17,6 +17,7 @@ Environment overrides:
   CS336_MIXED_PRECISION        off, bf16, or fp16
   CS336_ACTIVATION_CHECKPOINTING  1 to enable, 0 to disable
   CS336_PRELOAD_DATASET        1 to load the tokenized corpus into RAM on startup, 0 to lazy-load per request
+  CS336_DEVICES                Optional comma-separated device list (for example: cuda:0,cuda:1)
   CS336_MAX_STEPS_CAP          Optional step cap for smoke tests
   CS336_API_ACCEPT_ALL_KEYS    Accept any non-empty API key (default: 1)
   CS336_API_KEYS               Comma-separated allowlist when accept-all is disabled
@@ -102,6 +103,9 @@ echo "[start_api] device=${CS336_DEVICE}"
 echo "[start_api] mixed_precision=${CS336_MIXED_PRECISION}"
 echo "[start_api] activation_checkpointing=${CS336_ACTIVATION_CHECKPOINTING}"
 echo "[start_api] preload_dataset=${CS336_PRELOAD_DATASET}"
+if [[ -n "${CS336_DEVICES:-}" ]]; then
+  echo "[start_api] devices=${CS336_DEVICES}"
+fi
 if [[ -n "${CS336_MAX_STEPS_CAP:-}" ]]; then
   echo "[start_api] max_steps_cap=${CS336_MAX_STEPS_CAP}"
 fi

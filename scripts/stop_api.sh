@@ -25,6 +25,7 @@ PORT="${1:-${PORT:-8000}}"
 export CS336_LOG_DIR="${CS336_LOG_DIR:-/root/autodl-tmp/api-logs}"
 
 pid_path="${CS336_LOG_DIR}/api-${PORT}.pid"
+shutdown_url="http://127.0.0.1:${PORT}/__admin__/shutdown"
 
 if [[ ! -f "${pid_path}" ]]; then
   echo "[stop_api] missing pid file: ${pid_path}" >&2
@@ -45,7 +46,18 @@ if ! kill -0 "${server_pid}" 2>/dev/null; then
 fi
 
 echo "[stop_api] stopping pid=${server_pid} port=${PORT}"
-kill "${server_pid}"
+
+if command -v curl >/dev/null 2>&1; then
+  if curl -fsS -X POST "${shutdown_url}" >/dev/null 2>&1; then
+    echo "[stop_api] graceful shutdown requested via ${shutdown_url}"
+  else
+    echo "[stop_api] graceful shutdown endpoint unavailable; falling back to SIGTERM" >&2
+    kill "${server_pid}"
+  fi
+else
+  echo "[stop_api] curl is unavailable; falling back to SIGTERM" >&2
+  kill "${server_pid}"
+fi
 
 for _ in $(seq 1 30); do
   if ! kill -0 "${server_pid}" 2>/dev/null; then

@@ -11,6 +11,8 @@ from cs336_scaling.api_server import ApiRuntime, create_app
 
 
 class RecordingBackend:
+    max_concurrency = 1
+
     def __init__(self, loss: float = 1.2345) -> None:
         self.loss = loss
         self.calls: list[TrainingConfig] = []
@@ -19,18 +21,42 @@ class RecordingBackend:
         self.calls.append(config)
         return TrainingResult(loss=self.loss)
 
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
 
 class UnavailableBackend:
+    max_concurrency = 1
+
     def run(self, config: TrainingConfig) -> TrainingResult:
         raise BackendUnavailableError("Training backend is not configured yet.")
 
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
 
 class OOMBackend:
+    max_concurrency = 1
+
     def run(self, config: TrainingConfig) -> TrainingResult:
         raise TrainingOOMError("Training run ran out of memory for this configuration.")
 
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
 
 class BlockingBackend:
+    max_concurrency = 1
+
     def __init__(self, loss: float = 9.9) -> None:
         self.loss = loss
         self.calls = 0
@@ -44,6 +70,113 @@ class BlockingBackend:
             self.started.set()
         self.release.wait(timeout=5.0)
         return TrainingResult(loss=self.loss)
+
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
+
+class ConcurrentBlockingBackend:
+    max_concurrency = 2
+
+    def __init__(self, *, loss: float = 3.3) -> None:
+        self.loss = loss
+        self.calls = 0
+        self.active_calls = 0
+        self.max_active_calls = 0
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self._lock = threading.Lock()
+
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        with self._lock:
+            self.calls += 1
+            self.active_calls += 1
+            self.max_active_calls = max(self.max_active_calls, self.active_calls)
+            self.started.set()
+        self.release.wait(timeout=5.0)
+        with self._lock:
+            self.active_calls -= 1
+        return TrainingResult(loss=self.loss)
+
+    def begin_shutdown(self) -> None:
+        return None
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        return True
+
+
+class ShutdownAwareBackend:
+    max_concurrency = 1
+
+    def __init__(self, *, loss: float = 5.5) -> None:
+        self.loss = loss
+        self.calls = 0
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self._queue = threading.Condition()
+        self._jobs: list[tuple[TrainingConfig, threading.Event, dict[str, object]]] = []
+        self._running = 0
+        self._shutdown = False
+        self._worker = threading.Thread(target=self._worker_loop, daemon=True)
+        self._worker.start()
+
+    def _worker_loop(self) -> None:
+        while True:
+            with self._queue:
+                while not self._jobs:
+                    if self._shutdown:
+                        return
+                    self._queue.wait()
+                config, event, state = self._jobs.pop(0)
+                self._running += 1
+            self.calls += 1
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            state["result"] = TrainingResult(loss=self.loss)
+            state["running"] = True
+            event.set()
+            with self._queue:
+                self._running -= 1
+                if self._shutdown and self._running == 0 and not self._jobs:
+                    self._queue.notify_all()
+
+    def run(self, config: TrainingConfig) -> TrainingResult:
+        if self._shutdown:
+            raise BackendUnavailableError("Training backend is shutting down.")
+        event = threading.Event()
+        state: dict[str, object] = {}
+        with self._queue:
+            if self._shutdown:
+                raise BackendUnavailableError("Training backend is shutting down.")
+            self._jobs.append((config, event, state))
+            self._queue.notify_all()
+        event.wait(timeout=5.0)
+        result = state.get("result")
+        error = state.get("error")
+        if error is not None:
+            raise error  # type: ignore[misc]
+        assert isinstance(result, TrainingResult)
+        return result
+
+    def begin_shutdown(self) -> None:
+        with self._queue:
+            self._shutdown = True
+            while self._jobs:
+                _, event, state = self._jobs.pop(0)
+                state["error"] = BackendUnavailableError("Training backend is shutting down.")
+                event.set()
+            self._queue.notify_all()
+
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        with self._queue:
+            if timeout is None:
+                while self._running > 0 or self._jobs:
+                    self._queue.wait()
+                return True
+            return self._running == 0 and not self._jobs
 
 
 def make_client(
@@ -423,8 +556,8 @@ def test_runtime_serializes_same_api_key_queries_to_avoid_duplicate_training(tmp
     assert sorted(results) == [(4.4, False), (4.4, True)]
 
 
-def test_runtime_queues_distinct_configs_globally_while_one_training_is_running(tmp_path: Path) -> None:
-    backend = BlockingBackend(loss=6.6)
+def test_runtime_allows_distinct_configs_to_enter_backend_concurrently(tmp_path: Path) -> None:
+    backend = ConcurrentBlockingBackend(loss=6.6)
     runtime = ApiRuntime(
         db_path=tmp_path / "api.db",
         backend=backend,
@@ -460,19 +593,16 @@ def test_runtime_queues_distinct_configs_globally_while_one_training_is_running(
     thread_a.start()
     backend.started.wait(timeout=5.0)
     thread_b.start()
-
-    # While the first training job is still blocked, the second should remain queued.
-    assert backend.calls == 1
-
     backend.release.set()
     thread_a.join(timeout=5.0)
     thread_b.join(timeout=5.0)
 
     assert backend.calls == 2
+    assert backend.max_active_calls == 2
     assert sorted(results) == [(6.6, False), (6.6, False)]
 
 
-def test_queued_request_rechecks_budget_after_waiting(tmp_path: Path) -> None:
+def test_runtime_counts_reserved_flops_when_validating_new_queries(tmp_path: Path) -> None:
     backend = BlockingBackend(loss=7.7)
     runtime = ApiRuntime(
         db_path=tmp_path / "api.db",
@@ -504,7 +634,7 @@ def test_queued_request_rechecks_budget_after_waiting(tmp_path: Path) -> None:
         num_heads=8,
         batch_size=128,
         learning_rate=8e-4,
-        train_flops=int(1e13),
+        train_flops=int(1e17),
     )
 
     errors: list[str] = []
@@ -531,6 +661,71 @@ def test_queued_request_rechecks_budget_after_waiting(tmp_path: Path) -> None:
     assert errors == [
         "422: {'message': 'API key would exceed the scaling law FLOPs budget cap of 2000000000000000000: queued-cap-key'}"
     ]
+
+
+def test_runtime_rejects_new_queries_after_shutdown_begins(tmp_path: Path) -> None:
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=RecordingBackend(),
+        accept_all_keys=True,
+    )
+    client = TestClient(create_app(runtime))
+
+    runtime.begin_shutdown()
+    response = client.get("/loss", params=build_query(api_key="shutdown-key"))
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": {"message": "Training backend is shutting down."}}
+
+
+def test_shutdown_rejects_pending_requests_but_allows_running_request_to_finish(tmp_path: Path) -> None:
+    backend = ShutdownAwareBackend(loss=9.1)
+    runtime = ApiRuntime(
+        db_path=tmp_path / "api.db",
+        backend=backend,
+        accept_all_keys=True,
+    )
+    config_a = build_training_config(
+        api_key="shutdown-queue-key",
+        d_model=512,
+        num_layers=8,
+        num_heads=8,
+        batch_size=128,
+        learning_rate=1e-3,
+        train_flops=int(1e16),
+    )
+    config_b = build_training_config(
+        api_key="shutdown-queue-key",
+        d_model=768,
+        num_layers=12,
+        num_heads=12,
+        batch_size=128,
+        learning_rate=9e-4,
+        train_flops=int(1e16),
+    )
+
+    results: list[tuple[float, bool]] = []
+    errors: list[str] = []
+
+    def worker(config: TrainingConfig) -> None:
+        try:
+            result, cached = runtime.run_training_query(config)
+            results.append((result.loss, cached))
+        except Exception as exc:  # noqa: BLE001 - assertion helper in tests
+            errors.append(str(exc))
+
+    thread_a = threading.Thread(target=worker, args=(config_a,))
+    thread_b = threading.Thread(target=worker, args=(config_b,))
+    thread_a.start()
+    backend.started.wait(timeout=5.0)
+    thread_b.start()
+    runtime.begin_shutdown()
+    backend.release.set()
+    thread_a.join(timeout=5.0)
+    thread_b.join(timeout=5.0)
+
+    assert results == [(9.1, False)]
+    assert errors == ["Training backend is shutting down."]
 
 
 def test_total_flops_accumulates_across_distinct_queries_for_one_key(tmp_path: Path) -> None:

@@ -167,3 +167,21 @@ def test_get_training_backend_allows_disabling_dataset_preload(monkeypatch, tmp_
     assert isinstance(backend, TorchTrainingBackend)
     assert backend.runner.preload_dataset is False
     assert backend.runner.dataset is None
+
+
+def test_get_training_backend_expands_cuda_to_all_visible_devices(monkeypatch, tmp_path: Path) -> None:
+    from cs336_scaling.api_backend import get_training_backend
+
+    meta_path = write_backend_corpus(tmp_path)
+    monkeypatch.setenv("CS336_TRAIN_DATA_META_PATH", str(meta_path))
+    monkeypatch.setenv("CS336_VOCAB_SIZE", "32")
+    monkeypatch.setenv("CS336_DEVICE", "cuda")
+    monkeypatch.delenv("CS336_DEVICES", raising=False)
+    monkeypatch.setattr("torch.cuda.is_available", lambda: True)
+    monkeypatch.setattr("torch.cuda.device_count", lambda: 3)
+
+    backend = get_training_backend()
+
+    assert isinstance(backend, TorchTrainingBackend)
+    assert backend.device_specs == ["cuda:0", "cuda:1", "cuda:2"]
+    assert backend.max_concurrency == 3

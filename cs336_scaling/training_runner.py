@@ -61,6 +61,7 @@ class TrainingRunner:
         mixed_precision: str = "off",
         activation_checkpointing: bool = False,
         preload_dataset: bool = True,
+        dataset: TokenizedDataset | None = None,
         max_steps_cap: int | None = None,
         weight_decay: float = 0.01,
         gradient_clip: float = 1.0,
@@ -80,11 +81,9 @@ class TrainingRunner:
         self.gradient_clip = gradient_clip
         self.residual_pdrop = residual_pdrop
         self.attn_pdrop = attn_pdrop
-        self.dataset = (
-            TokenizedDataset.from_meta(self.train_data_meta_path)
-            if self.preload_dataset
-            else None
-        )
+        self.dataset = dataset
+        if self.dataset is None and self.preload_dataset:
+            self.dataset = TokenizedDataset.from_meta(self.train_data_meta_path)
 
     def _build_model(self, config: TrainingConfig) -> BasicsTransformerLM:
         model = BasicsTransformerLM(
