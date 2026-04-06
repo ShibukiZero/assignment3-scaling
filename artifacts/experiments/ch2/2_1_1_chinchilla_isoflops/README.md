@@ -12,3 +12,7 @@ Files:
 
 These files were promoted from the exploratory run under
 `.agents/logs/chinchilla_isoflops_run1/` after review.
+
+Naming note:
+
+- `experiments/ch2/2_1_1_chinchilla_isoflops/` follows the chapter-based archival convention for Assignment 3 outputs.

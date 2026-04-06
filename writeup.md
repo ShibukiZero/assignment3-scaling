@@ -11,7 +11,7 @@ I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by comp
 
 with `R^2 = 0.9787`.
 
-![Model-size scaling law](artifacts/chinchilla_isoflops/model_size_scaling_law.png)
+![Model-size scaling law](artifacts/experiments/ch2/2_1_1_chinchilla_isoflops/model_size_scaling_law.png)
 
 Figure 1 shows both the observed optimal points and the fitted scaling law. Using this fit, the predicted compute-optimal model size is approximately `7.01e10` parameters at `1e23` FLOPs and `2.06e11` parameters at `1e24` FLOPs.
 
@@ -26,7 +26,7 @@ After selecting the minimum-loss run for each compute budget, I converted the op
 
 with `R^2 = 0.9834`.
 
-![Dataset-size scaling law](artifacts/chinchilla_isoflops/dataset_size_scaling_law.png)
+![Dataset-size scaling law](artifacts/experiments/ch2/2_1_1_chinchilla_isoflops/dataset_size_scaling_law.png)
 
 Figure 2 shows the observed optimal dataset sizes together with the fitted law. Using this fit, the predicted compute-optimal dataset size is approximately `2.38e11` tokens at `1e23` FLOPs and `8.09e11` tokens at `1e24` FLOPs.
 
