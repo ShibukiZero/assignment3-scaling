@@ -273,3 +273,30 @@ This file is the working log for Chapter 3 experiments only.
     - use an aggressive `1e17` bracket
     - first test `{512_4_8, 640_5_10, 768_6_12}`
     - then use any remaining budget adaptively to extend left or right depending on the winner
+
+## `3_3_5_isoflops_1e17_bracket`
+
+- Experiment ID: `3_3_5_isoflops_1e17_bracket`
+- What this experiment is:
+  - an aggressive high-budget bracket after the `6e16` full-curve milestone
+- Config:
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `512 -> 1e-3`
+    - `640 -> 1e-3`
+    - `768 -> 9e-4`
+  - fixed `train_flops = 1e17`
+  - shapes:
+    - `shape_512_4_8`
+    - `shape_640_5_10`
+    - `shape_768_6_12`
+- Why we are doing it:
+  - the optimum has already moved from `384` at `3e16` to `512` at `6e16`
+  - we want to directly test whether the optimum continues shifting right by `1e17`
+  - this uses the remaining budget more aggressively than a conservative left-inclusive bracket
+- Output directory:
+  - `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/`
+- Current status:
+  - planned
+  - grid file prepared at `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/grid.json`
+  - total planned budget: `3 * 1e17 = 3e17` FLOPs
