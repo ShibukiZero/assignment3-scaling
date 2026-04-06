@@ -23,6 +23,9 @@ This file is the working log for Chapter 3 experiments only.
   - target parameter scale `N_anchor` near `2.5e7`
   - fixed `batch_size = 128`
   - fixed `train_flops = 1e16`
+  - fixed runner defaults in the script:
+    - `base_url = http://127.0.0.1:8000`
+    - `api_key = cs336_assignment3_fixed_key`
   - client submission mode:
     - bounded concurrency
     - detect local GPU count at launch time
@@ -52,4 +55,5 @@ This file is the working log for Chapter 3 experiments only.
 - Current status:
   - planned
   - grid file prepared at `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
+  - runtime defaults live in `scripts/run_api_experiment_grid.py`
   - total planned round-1 budget: `5 * 4 * 1e16 = 2e17` FLOPs

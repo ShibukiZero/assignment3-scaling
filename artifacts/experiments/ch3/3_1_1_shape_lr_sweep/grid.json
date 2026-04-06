@@ -1,7 +1,5 @@
 {
   "experiment_id": "3_1_1_shape_lr_sweep",
-  "base_url": "http://hyperturing.stanford.edu:8000",
-  "api_key": "cs336_assignment3_fixed_key",
   "endpoint": "/loss",
   "client": {
     "max_inflight": 0

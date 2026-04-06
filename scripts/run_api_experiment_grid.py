@@ -16,6 +16,7 @@ from urllib.parse import urlencode
 
 import requests
 
+DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_EXPERIMENT_API_KEY = "cs336_assignment3_fixed_key"
 
 
@@ -45,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--base-url",
         default=None,
-        help="Optional API base URL override. Defaults to the grid JSON value.",
+        help="Optional API base URL override. Defaults to the local training API in this script.",
     )
     parser.add_argument(
         "--api-key",
@@ -208,8 +209,8 @@ def main() -> None:
     raw_config = load_grid_config(config_path)
 
     experiment_id = str(raw_config["experiment_id"])
-    base_url = args.base_url or str(raw_config["base_url"])
-    api_key = args.api_key or str(raw_config.get("api_key", DEFAULT_EXPERIMENT_API_KEY))
+    base_url = args.base_url or DEFAULT_BASE_URL
+    api_key = args.api_key or DEFAULT_EXPERIMENT_API_KEY
 
     endpoint = str(raw_config.get("endpoint", "/loss"))
     shared_params = dict(raw_config.get("shared_params", {}))

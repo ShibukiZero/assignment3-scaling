@@ -9,12 +9,13 @@
   - target parameter scale `N_anchor` near `2.5e7`
   - `batch_size = 128`
   - `train_flops = 1e16`
+  - fixed runner defaults:
+    - `base_url = http://127.0.0.1:8000`
+    - `api_key = cs336_assignment3_fixed_key`
   - client submission mode:
     - bounded concurrency
     - detect local GPU count at launch time
     - use the detected GPU count as `max_inflight`
-  - fixed experiment API key:
-    - `cs336_assignment3_fixed_key`
   - compare candidate shapes by sweeping `learning_rate`
 - Candidate shapes:
   - `d_model=384, num_layers=14, num_heads=6`
