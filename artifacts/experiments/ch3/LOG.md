@@ -175,9 +175,12 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_3_1_isoflops_3e15_full/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_3_1_isoflops_3e15_full/grid.json`
   - total planned budget: `7 * 3e15 = 2.1e16` FLOPs
+  - observed conclusion:
+    - best observed shape: `256_2_4`
+    - this point remains left-censored by the family lower bound
 
 ## `3_3_2_isoflops_6e15_full`
 
@@ -199,9 +202,12 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_3_2_isoflops_6e15_full/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_3_2_isoflops_6e15_full/grid.json`
   - total planned budget: `7 * 6e15 = 4.2e16` FLOPs
+  - observed conclusion:
+    - best observed shape: `256_2_4`
+    - this point remains left-censored by the family lower bound
 
 ## `3_3_3_isoflops_3e16_full`
 
@@ -223,9 +229,12 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_3_3_isoflops_3e16_full/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_3_3_isoflops_3e16_full/grid.json`
   - total planned budget: `7 * 3e16 = 2.1e17` FLOPs
+  - observed conclusion:
+    - best observed shape: `384_3_6`
+    - `512_4_8` is nearly tied and forms a flat local basin with the winner
 
 ## `3_3_4_isoflops_6e16_full`
 
@@ -246,6 +255,21 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_3_4_isoflops_6e16_full/`
 - Current status:
-  - planned
+  - completed
   - grid file prepared at `artifacts/experiments/ch3/3_3_4_isoflops_6e16_full/grid.json`
   - total planned budget: `7 * 6e16 = 4.2e17` FLOPs
+  - observed conclusion:
+    - best observed shape: `512_4_8`
+    - `384_3_6` and `640_5_10` bracket the current local basin cleanly
+  - current IsoFLOPs summary:
+    - `3e15 -> 1.57e6`
+    - `6e15 -> 1.57e6`
+    - `1e16 -> 1.57e6`
+    - `3e16 -> 5.31e6`
+    - `6e16 -> 1.26e7`
+  - current total used budget:
+    - about `1.453e18`
+  - next-step decision:
+    - use an aggressive `1e17` bracket
+    - first test `{512_4_8, 640_5_10, 768_6_12}`
+    - then use any remaining budget adaptively to extend left or right depending on the winner
