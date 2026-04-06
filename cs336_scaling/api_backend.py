@@ -15,7 +15,7 @@ from cs336_scaling.api_contract import TrainingConfig, estimate_non_embedding_pa
 from cs336_scaling.token_dataset import TokenizedDataset
 from cs336_scaling.training_runner import TrainingRunner
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 
 class BackendUnavailableError(RuntimeError):
