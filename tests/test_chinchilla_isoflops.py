@@ -6,6 +6,7 @@ from cs336_scaling.chinchilla_isoflops import (
     IsoflopsRun,
     estimate_dataset_tokens,
     fit_power_law,
+    fit_quadratic_profile_optima,
     parse_budget_list,
     select_optimal_runs,
 )
@@ -56,3 +57,35 @@ def test_fit_power_law_recovers_exact_log_linear_relationship() -> None:
 
 def test_parse_budget_list_accepts_scientific_notation() -> None:
     assert parse_budget_list("1e23, 1e24") == [1e23, 1e24]
+
+
+def test_fit_quadratic_profile_optima_recovers_vertex_inside_profile() -> None:
+    runs = [
+        IsoflopsRun(parameters=10.0, compute_budget=1e6, final_loss=2.0),
+        IsoflopsRun(parameters=100.0, compute_budget=1e6, final_loss=1.0),
+        IsoflopsRun(parameters=1000.0, compute_budget=1e6, final_loss=2.0),
+    ]
+
+    profile_fits = fit_quadratic_profile_optima(runs)
+
+    assert len(profile_fits) == 1
+    fit = profile_fits[0]
+    assert fit.used_vertex is True
+    assert math.isclose(fit.optimal_parameters, 100.0, rel_tol=1e-9)
+    assert math.isclose(fit.estimated_loss, 1.0, rel_tol=1e-9)
+
+
+def test_fit_quadratic_profile_optima_falls_back_to_observed_minimum_when_parabola_opens_down() -> None:
+    runs = [
+        IsoflopsRun(parameters=10.0, compute_budget=1e6, final_loss=1.0),
+        IsoflopsRun(parameters=100.0, compute_budget=1e6, final_loss=2.0),
+        IsoflopsRun(parameters=1000.0, compute_budget=1e6, final_loss=1.0),
+    ]
+
+    profile_fits = fit_quadratic_profile_optima(runs)
+
+    assert len(profile_fits) == 1
+    fit = profile_fits[0]
+    assert fit.used_vertex is False
+    assert math.isclose(fit.optimal_parameters, 10.0, rel_tol=1e-9)
+    assert math.isclose(fit.estimated_loss, 1.0, rel_tol=1e-9)
