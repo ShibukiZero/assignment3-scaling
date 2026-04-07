@@ -282,21 +282,26 @@ This file is the working log for Chapter 3 experiments only.
 - Config:
   - fixed `batch_size = 128`
   - fixed per-shape LR lookup:
+    - `384 -> 1e-3`
     - `512 -> 1e-3`
     - `640 -> 1e-3`
     - `768 -> 9e-4`
+    - `896 -> 7e-4`
   - fixed `train_flops = 1e17`
   - shapes:
+    - `shape_384_3_6`
     - `shape_512_4_8`
     - `shape_640_5_10`
     - `shape_768_6_12`
+    - `shape_896_7_14`
 - Why we are doing it:
   - the optimum has already moved from `384` at `3e16` to `512` at `6e16`
-  - we want to directly test whether the optimum continues shifting right by `1e17`
-  - this uses the remaining budget more aggressively than a conservative left-inclusive bracket
+  - we now want a denser local profile around the likely `1e17` optimum
+  - a 5-point local curve is much more useful for local IsoFLOPs curve fitting than the original 3-point bracket
 - Output directory:
   - `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/`
 - Current status:
   - planned
   - grid file prepared at `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/grid.json`
-  - total planned budget: `3 * 1e17 = 3e17` FLOPs
+  - full 5-point budget: `5 * 1e17 = 5e17` FLOPs
+  - incremental cost after the first 3-point run: `2 * 1e17 = 2e17` FLOPs

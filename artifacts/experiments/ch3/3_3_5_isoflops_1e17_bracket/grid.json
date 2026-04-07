@@ -13,6 +13,15 @@
       "name": "trial",
       "values": [
         {
+          "id": "shape_384_3_6",
+          "params": {
+            "d_model": 384,
+            "num_layers": 3,
+            "num_heads": 6,
+            "learning_rate": 0.001
+          }
+        },
+        {
           "id": "shape_512_4_8",
           "params": {
             "d_model": 512,
@@ -37,6 +46,15 @@
             "num_layers": 6,
             "num_heads": 12,
             "learning_rate": 0.0009
+          }
+        },
+        {
+          "id": "shape_896_7_14",
+          "params": {
+            "d_model": 896,
+            "num_layers": 7,
+            "num_heads": 14,
+            "learning_rate": 0.0007
           }
         }
       ]
