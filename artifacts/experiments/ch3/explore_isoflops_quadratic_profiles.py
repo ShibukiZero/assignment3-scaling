@@ -13,6 +13,11 @@ Outputs:
 The default output directory is under `.agents/logs/`, not `artifacts/`, so the
 results can be reviewed first before we decide whether to promote them into the
 final report.
+
+The script fits each budget profile using all plotted `N` points. Archived
+Chapter 3 analyses may additionally exclude some compute budgets at the
+scaling-law stage when they behave like outliers, but the per-budget quadratic
+profiles themselves use the full plotted profile.
 """
 
 from __future__ import annotations
@@ -56,6 +61,7 @@ class ProfilePoint:
 class QuadraticFitSummary:
     compute_budget: float
     num_points: int
+    fit_points_n: list[int]
     observed_best_n: int
     observed_best_loss: float
     quadratic_vertex_n: float
@@ -123,11 +129,24 @@ def load_all_profiles(base_dir: Path) -> dict[float, list[ProfilePoint]]:
     return dict(sorted(profiles.items()))
 
 
+def filter_profiles(
+    profiles: dict[float, list[ProfilePoint]],
+    excluded_budgets: set[float],
+) -> dict[float, list[ProfilePoint]]:
+    return {
+        compute_budget: points
+        for compute_budget, points in profiles.items()
+        if compute_budget not in excluded_budgets
+    }
+
+
 def fit_profile(points: list[ProfilePoint]) -> tuple[np.ndarray, QuadraticFitSummary]:
     xs = np.array([point.n_params for point in points], dtype=float)
     ys = np.array([point.loss for point in points], dtype=float)
-    log_xs = np.log10(xs)
-    coeffs = np.polyfit(log_xs, ys, deg=2)
+    fit_xs = xs
+    fit_ys = ys
+    log_xs = np.log10(fit_xs)
+    coeffs = np.polyfit(log_xs, fit_ys, deg=2)
     a, b, c = coeffs
     vertex_log_x = -b / (2 * a) if a != 0 else float("nan")
     vertex_n = float(10**vertex_log_x) if np.isfinite(vertex_log_x) else float("nan")
@@ -137,14 +156,15 @@ def fit_profile(points: list[ProfilePoint]) -> tuple[np.ndarray, QuadraticFitSum
     summary = QuadraticFitSummary(
         compute_budget=points[0].compute_budget,
         num_points=len(points),
+        fit_points_n=[int(value) for value in fit_xs],
         observed_best_n=observed_best.n_params,
         observed_best_loss=observed_best.loss,
         quadratic_vertex_n=vertex_n,
         quadratic_vertex_loss=vertex_loss,
         opens_upward=bool(a > 0),
-        vertex_in_observed_range=bool(xs.min() <= vertex_n <= xs.max()) if np.isfinite(vertex_n) else False,
-        fit_domain_min_n=int(xs.min()),
-        fit_domain_max_n=int(xs.max()),
+        vertex_in_observed_range=bool(fit_xs.min() <= vertex_n <= fit_xs.max()) if np.isfinite(vertex_n) else False,
+        fit_domain_min_n=int(fit_xs.min()),
+        fit_domain_max_n=int(fit_xs.max()),
     )
     return coeffs, summary
 
@@ -233,13 +253,28 @@ def parse_args() -> argparse.Namespace:
         default=Path(".agents/logs/ch3_isoflops_quadratic_explore"),
         help="Directory for exploratory plot and JSON outputs.",
     )
+    parser.add_argument(
+        "--exclude-budgets",
+        type=str,
+        default="",
+        help="Comma-separated compute budgets to exclude entirely, e.g. '3e15,6e15'.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     profiles = load_all_profiles(args.base_dir)
-    fit_results = {budget: fit_profile(points) for budget, points in profiles.items()}
+    excluded_budgets = {
+        float(item.strip())
+        for item in args.exclude_budgets.split(",")
+        if item.strip()
+    }
+    profiles = filter_profiles(profiles, excluded_budgets)
+    fit_results = {
+        budget: fit_profile(points)
+        for budget, points in profiles.items()
+    }
     summaries = [fit_results[budget][1] for budget in profiles]
     make_plot(profiles, fit_results, args.output_dir / "isoflops_quadratic_profiles.png")
     write_summary_json(summaries, args.output_dir / "isoflops_quadratic_summary.json")

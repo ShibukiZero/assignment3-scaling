@@ -8,11 +8,17 @@ This is an exploratory analysis script. It:
 3. Extracts a second `N_opt(C)` sequence using the quadratic vertex in each profile.
 4. Fits a log-log power law to each sequence, using different point-selection rules:
    - observed minima: fit only non-boundary points
-   - quadratic-profile optima: fit all budgets with finite quadratic vertices
+   - quadratic-profile optima: fit all plotted budgets, but optionally drop the
+     smallest budgets from the actual power-law regression
 5. Writes separate scaling-law figures plus a JSON summary containing the fitted formulas.
 
 The default output directory lives under `.agents/logs/` so we can inspect the
 results before deciding what belongs in the final write-up.
+
+The quadratic-derived analysis fits each per-budget quadratic profile using all
+plotted `N` points. Archived Chapter 3 analyses may still exclude the smallest
+compute budgets from the final power-law regression when they behave like
+outliers.
 """
 
 from __future__ import annotations
@@ -57,6 +63,7 @@ class BudgetPoint:
     compute_budget: float
     observed_best_n: int
     observed_best_loss: float
+    quadratic_fit_points_n: list[int]
     quadratic_vertex_n: float
     quadratic_vertex_loss: float
     opens_upward: bool
@@ -71,6 +78,8 @@ class PowerLawFit:
     slope: float
     coefficient: float
     r_squared: float
+    target_flops: float
+    predicted_n_at_target_flops: float
 
     @property
     def formula(self) -> str:
@@ -134,11 +143,24 @@ def load_all_profiles(base_dir: Path) -> dict[float, list[ProfilePoint]]:
     return dict(sorted(profiles.items()))
 
 
+def filter_profiles(
+    profiles: dict[float, list[ProfilePoint]],
+    excluded_budgets: set[float],
+) -> dict[float, list[ProfilePoint]]:
+    return {
+        compute_budget: points
+        for compute_budget, points in profiles.items()
+        if compute_budget not in excluded_budgets
+    }
+
+
 def summarize_budget(points: list[ProfilePoint]) -> BudgetPoint:
     xs = np.array([point.n_params for point in points], dtype=float)
     ys = np.array([point.loss for point in points], dtype=float)
-    log_xs = np.log10(xs)
-    coeffs = np.polyfit(log_xs, ys, deg=2)
+    fit_xs = xs
+    fit_ys = ys
+    log_xs = np.log10(fit_xs)
+    coeffs = np.polyfit(log_xs, fit_ys, deg=2)
     a, b, c = coeffs
     vertex_log_x = -b / (2 * a) if a != 0 else float("nan")
     vertex_n = float(10**vertex_log_x) if np.isfinite(vertex_log_x) else float("nan")
@@ -149,16 +171,17 @@ def summarize_budget(points: list[ProfilePoint]) -> BudgetPoint:
         compute_budget=points[0].compute_budget,
         observed_best_n=observed_best.n_params,
         observed_best_loss=observed_best.loss,
+        quadratic_fit_points_n=[int(value) for value in fit_xs],
         quadratic_vertex_n=vertex_n,
         quadratic_vertex_loss=vertex_loss,
         opens_upward=bool(a > 0),
-        vertex_in_observed_range=bool(xs.min() <= vertex_n <= xs.max()) if np.isfinite(vertex_n) else False,
-        fit_domain_min_n=int(xs.min()),
-        fit_domain_max_n=int(xs.max()),
+        vertex_in_observed_range=bool(fit_xs.min() <= vertex_n <= fit_xs.max()) if np.isfinite(vertex_n) else False,
+        fit_domain_min_n=int(fit_xs.min()),
+        fit_domain_max_n=int(fit_xs.max()),
     )
 
 
-def fit_power_law(xs: list[float], ys: list[float]) -> PowerLawFit:
+def fit_power_law(xs: list[float], ys: list[float], target_flops: float) -> PowerLawFit:
     log_x = np.log10(xs)
     log_y = np.log10(ys)
     slope, intercept = np.polyfit(log_x, log_y, deg=1)
@@ -172,7 +195,18 @@ def fit_power_law(xs: list[float], ys: list[float]) -> PowerLawFit:
         slope=float(slope),
         coefficient=float(10**intercept),
         r_squared=r_squared,
+        target_flops=target_flops,
+        predicted_n_at_target_flops=float((10**intercept) * (target_flops ** slope)),
     )
+
+
+def select_quadratic_fit_points(
+    summaries: list[BudgetPoint],
+    num_smallest_budgets_to_drop: int,
+) -> list[BudgetPoint]:
+    valid = [summary for summary in summaries if np.isfinite(summary.quadratic_vertex_n)]
+    valid.sort(key=lambda summary: summary.compute_budget)
+    return valid[num_smallest_budgets_to_drop:]
 
 
 def make_observed_plot(summaries: list[BudgetPoint], observed_fit: PowerLawFit, output_path: Path) -> None:
@@ -204,7 +238,7 @@ def make_observed_plot(summaries: list[BudgetPoint], observed_fit: PowerLawFit, 
 
     fit_xs = np.geomspace(
         min(summary.compute_budget for summary in summaries),
-        max(summary.compute_budget for summary in summaries),
+        max(max(summary.compute_budget for summary in summaries), observed_fit.target_flops),
         300,
     )
     observed_fit_ys = observed_fit.coefficient * (fit_xs ** observed_fit.slope)
@@ -226,6 +260,15 @@ def make_observed_plot(summaries: list[BudgetPoint], observed_fit: PowerLawFit, 
             ha="center",
             fontsize=8,
         )
+    ax.scatter(
+        [observed_fit.target_flops],
+        [observed_fit.predicted_n_at_target_flops],
+        marker="*",
+        s=180,
+        color="#2ca02c",
+        zorder=5,
+        label=f"Predicted N at {observed_fit.target_flops:.0e}",
+    )
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -255,7 +298,7 @@ def make_quadratic_plot(summaries: list[BudgetPoint], quadratic_fit: PowerLawFit
 
     fit_xs = np.geomspace(
         min(summary.compute_budget for summary in valid),
-        max(summary.compute_budget for summary in valid),
+        max(max(summary.compute_budget for summary in valid), quadratic_fit.target_flops),
         300,
     )
     quadratic_fit_ys = quadratic_fit.coefficient * (fit_xs ** quadratic_fit.slope)
@@ -277,6 +320,15 @@ def make_quadratic_plot(summaries: list[BudgetPoint], quadratic_fit: PowerLawFit
             ha="center",
             fontsize=8,
         )
+    ax.scatter(
+        [quadratic_fit.target_flops],
+        [quadratic_fit.predicted_n_at_target_flops],
+        marker="*",
+        s=180,
+        color="#2ca02c",
+        zorder=5,
+        label=f"Predicted N at {quadratic_fit.target_flops:.0e}",
+    )
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -314,7 +366,7 @@ def make_comparison_plot(
         zorder=4,
     )
 
-    fit_xs = np.geomspace(observed_x.min(), observed_x.max(), 300)
+    fit_xs = np.geomspace(observed_x.min(), max(observed_x.max(), observed_fit.target_flops, quadratic_fit.target_flops), 300)
     ax.plot(
         fit_xs,
         observed_fit.coefficient * (fit_xs ** observed_fit.slope),
@@ -330,6 +382,22 @@ def make_comparison_plot(
         linestyle="-.",
         linewidth=2.0,
         label="Quadratic-optimum fit",
+    )
+    ax.scatter(
+        [observed_fit.target_flops],
+        [observed_fit.predicted_n_at_target_flops],
+        marker="*",
+        s=160,
+        color="#1f77b4",
+        zorder=5,
+    )
+    ax.scatter(
+        [quadratic_fit.target_flops],
+        [quadratic_fit.predicted_n_at_target_flops],
+        marker="*",
+        s=160,
+        color="#d62728",
+        zorder=5,
     )
 
     ax.set_xscale("log")
@@ -348,6 +416,7 @@ def write_summary_json(
     summaries: list[BudgetPoint],
     observed_fit: PowerLawFit,
     quadratic_fit: PowerLawFit,
+    quadratic_fit_points: list[BudgetPoint],
     output_path: Path,
 ) -> None:
     payload = {
@@ -361,6 +430,8 @@ def write_summary_json(
             "slope": observed_fit.slope,
             "intercept_log10": observed_fit.intercept_log10,
             "r_squared": observed_fit.r_squared,
+            "target_flops": observed_fit.target_flops,
+            "predicted_n_at_target_flops": observed_fit.predicted_n_at_target_flops,
             "fit_budgets": [
                 summary.compute_budget
                 for summary in summaries
@@ -374,8 +445,10 @@ def write_summary_json(
             "slope": quadratic_fit.slope,
             "intercept_log10": quadratic_fit.intercept_log10,
             "r_squared": quadratic_fit.r_squared,
-            "fit_budgets": [summary.compute_budget for summary in summaries if np.isfinite(summary.quadratic_vertex_n)],
-            "fit_selection_rule": "Use all budgets with finite quadratic-profile vertices.",
+            "target_flops": quadratic_fit.target_flops,
+            "predicted_n_at_target_flops": quadratic_fit.predicted_n_at_target_flops,
+            "fit_budgets": [summary.compute_budget for summary in quadratic_fit_points],
+            "fit_selection_rule": "Use quadratic-profile optima, but drop the two smallest compute budgets from the power-law regression.",
         },
         "budgets": [asdict(summary) for summary in summaries],
     }
@@ -397,22 +470,55 @@ def parse_args() -> argparse.Namespace:
         default=Path(".agents/logs/ch3_nopt_fit_comparison"),
         help="Directory for exploratory comparison outputs.",
     )
+    parser.add_argument(
+        "--target-flops",
+        type=float,
+        default=1e19,
+        help="Target FLOPs budget to cover and annotate in the scaling plots.",
+    )
+    parser.add_argument(
+        "--exclude-budgets",
+        type=str,
+        default="",
+        help="Comma-separated compute budgets to exclude entirely, e.g. '3e15,6e15'.",
+    )
+    parser.add_argument(
+        "--drop-smallest-quadratic-budgets",
+        type=int,
+        default=2,
+        help="Number of smallest compute budgets to omit from the quadratic-derived power-law fit.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     profiles = load_all_profiles(args.base_dir)
-    summaries = [summarize_budget(points) for _, points in profiles.items()]
+    excluded_budgets = {
+        float(item.strip())
+        for item in args.exclude_budgets.split(",")
+        if item.strip()
+    }
+    profiles = filter_profiles(profiles, excluded_budgets)
+    summaries = [
+        summarize_budget(points)
+        for _, points in profiles.items()
+    ]
 
     boundary_n = min(summary.observed_best_n for summary in summaries)
     observed_fit = fit_power_law(
         xs=[summary.compute_budget for summary in summaries if summary.observed_best_n != boundary_n],
         ys=[summary.observed_best_n for summary in summaries if summary.observed_best_n != boundary_n],
+        target_flops=args.target_flops,
+    )
+    quadratic_fit_points = select_quadratic_fit_points(
+        summaries,
+        num_smallest_budgets_to_drop=args.drop_smallest_quadratic_budgets,
     )
     quadratic_fit = fit_power_law(
-        xs=[summary.compute_budget for summary in summaries if np.isfinite(summary.quadratic_vertex_n)],
-        ys=[summary.quadratic_vertex_n for summary in summaries if np.isfinite(summary.quadratic_vertex_n)],
+        xs=[summary.compute_budget for summary in quadratic_fit_points],
+        ys=[summary.quadratic_vertex_n for summary in quadratic_fit_points],
+        target_flops=args.target_flops,
     )
 
     make_observed_plot(
@@ -435,6 +541,7 @@ def main() -> None:
         summaries=summaries,
         observed_fit=observed_fit,
         quadratic_fit=quadratic_fit,
+        quadratic_fit_points=quadratic_fit_points,
         output_path=args.output_dir / "nopt_fit_comparison.json",
     )
 

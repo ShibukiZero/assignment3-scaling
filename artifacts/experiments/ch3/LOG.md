@@ -305,3 +305,23 @@ This file is the working log for Chapter 3 experiments only.
   - grid file prepared at `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/grid.json`
   - full 5-point budget: `5 * 1e17 = 5e17` FLOPs
   - incremental cost after the first 3-point run: `2 * 1e17 = 2e17` FLOPs
+
+## `3_4_1_isoflops_fit_analysis`
+
+- Experiment ID: `3_4_1_isoflops_fit_analysis`
+- What this analysis is:
+  - a post-experiment analysis bundle for Chapter 3 IsoFLOPs plots
+  - compare observed-min and quadratic-derived `N_opt(C)` fits
+- Config:
+  - reuse the archived Chapter 3 IsoFLOPs results
+  - for the quadratic-derived analysis, drop the smallest `N` point from each per-budget quadratic fit
+  - extend the fitted scaling-law plots to the target FLOPs budget `1e19`
+- Why we are doing it:
+  - we want one place to archive the main Chapter 3 scaling-law figures
+  - we want to inspect whether the quadratic-derived optima produce a more useful fit than the boundary-clipped observed minima
+- Output directory:
+  - `artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/`
+- Current status:
+  - planned
+  - commands are documented in `artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/README.md`
+  - the archived per-budget quadratic profile figure should replace the older `.agents/logs/ch3_isoflops_quadratic_explore/` version
