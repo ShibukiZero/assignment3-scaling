@@ -186,7 +186,15 @@ Figure 9 overlays the observed-minimum points, the quadratic-derived optima, and
 
 ### 6. Fit Quality and Uncertainty
 
-`TODO`: Comment on goodness of fit, uncertainty, and the main sources of extrapolation risk.
+The adopted quadratic-derived scaling law fits the medium- and high-budget regime reasonably well. In particular, the fitted law
+
+`N_opt(C) = 3.624676e-05 * C^0.681608`
+
+achieves `R^2 = 0.9816` on the selected quadratic-derived optima. This indicates that, once the IsoFLOPs curves move out of the left-censored regime, the estimated optimal model size is well approximated by a power law in log-log space.
+
+At the same time, the main uncertainty in our final prediction does not come from regression noise alone. Instead, it comes from three structural factors. First, the lowest-budget curves are still boundary-censored by the smallest legal model in our restricted family, so they are informative about the low-budget regime but should not be interpreted as clean interior optima. Second, the search was intentionally restricted to a 7-point exact architecture family, which makes the extracted `N_opt(C)` sequence discretized and may shift the apparent optimum away from the true optimum that would be found in a denser architecture space. Third, the final prediction at `1e19` FLOPs is a genuine extrapolation beyond the largest queried budget of `1e17`, so even a strong in-range fit cannot eliminate large-scale extrapolation risk.
+
+Among the queried budgets, the strongest direct support comes from `3e16`, `6e16`, and especially the 5-point `1e17` local profile, where the optimum is bracketed rather than inferred from a boundary point. For this reason, we treat the fitted law as a principled estimate rather than a precise oracle. We trust the qualitative trend—that the compute-optimal model size increases smoothly with compute and that the quadratic-derived fit provides a more stable summary than the raw observed minima—but we still expect nontrivial uncertainty in the exact parameter count predicted at `1e19` FLOPs.
 
 ### 7. Final `1e19` Prediction
 
