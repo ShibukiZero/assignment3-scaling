@@ -5,7 +5,7 @@ This script reads the archived `results.json` from experiment `3_1_1_shape_lr_sw
 and produces a figure with two panels:
 
 1. Loss versus width/depth ratio for every tested learning rate.
-2. Best loss per shape after the local LR sweep, with the winning shape highlighted.
+2. Best loss per shape after the local LR sweep, with the winner and top-3 shapes highlighted.
 
 The goal is to document that the initial search was a fixed-parameter-scale shape
 comparison rather than a full IsoFLOPs sweep.
@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 @dataclass(frozen=True)
@@ -82,37 +81,12 @@ def best_per_shape(trials: list[ShapeTrial]) -> list[ShapeTrial]:
     return winners
 
 
-def fit_quadratic_valley(trials: list[ShapeTrial]) -> tuple[np.ndarray, float | None, float | None]:
-    """Fit a quadratic in log2(width/depth ratio) to the best-per-shape losses.
-
-    Returns:
-    - coefficients in descending power order for np.polyval
-    - fitted optimum ratio if the parabola opens upward and the vertex lies inside
-      the observed range; otherwise None
-    - fitted optimum loss at that ratio, or None
-    """
-    xs = np.array([trial.width_depth_ratio for trial in trials], dtype=float)
-    ys = np.array([trial.loss for trial in trials], dtype=float)
-    log_xs = np.log2(xs)
-    coeffs = np.polyfit(log_xs, ys, deg=2)
-    a, b, c = coeffs
-    if a <= 0:
-        return coeffs, None, None
-    vertex_log_x = -b / (2 * a)
-    min_log_x = float(log_xs.min())
-    max_log_x = float(log_xs.max())
-    if not (min_log_x <= vertex_log_x <= max_log_x):
-        return coeffs, None, None
-    optimum_ratio = float(2 ** vertex_log_x)
-    optimum_loss = float(np.polyval(coeffs, vertex_log_x))
-    return coeffs, optimum_ratio, optimum_loss
-
-
 def make_plot(trials: list[ShapeTrial], output_path: Path) -> None:
     lr_groups = group_by_lr(trials)
     winners = best_per_shape(trials)
     winning_trial = min(winners, key=lambda trial: trial.loss)
-    coeffs, optimum_ratio, optimum_loss = fit_quadratic_valley(winners)
+    top_three = sorted(winners, key=lambda trial: trial.loss)[:3]
+    top_three_ids = {trial.shape_id for trial in top_three}
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
 
@@ -137,25 +111,26 @@ def make_plot(trials: list[ShapeTrial], output_path: Path) -> None:
     xs = [trial.width_depth_ratio for trial in winners]
     ys = [trial.loss for trial in winners]
     ax.plot(xs, ys, marker="o", linewidth=2.0, color="#1f77b4")
-    fit_xs = np.geomspace(min(xs), max(xs), 200)
-    fit_ys = np.polyval(coeffs, np.log2(fit_xs))
-    ax.plot(
-        fit_xs,
-        fit_ys,
-        linestyle="--",
-        linewidth=1.8,
-        color="#ff7f0e",
-        label="Quadratic fit on best-loss profile",
-    )
-    ax.scatter(
-        [winning_trial.width_depth_ratio],
-        [winning_trial.loss],
-        s=120,
-        color="#d62728",
-        zorder=3,
-        label="Selected anchor winner",
-    )
     for trial in winners:
+        if trial.shape_id == winning_trial.shape_id:
+            color = "#d62728"
+            size = 140
+            zorder = 4
+        elif trial.shape_id in top_three_ids:
+            color = "#ff7f0e"
+            size = 100
+            zorder = 3
+        else:
+            color = "#1f77b4"
+            size = 60
+            zorder = 2
+        ax.scatter(
+            [trial.width_depth_ratio],
+            [trial.loss],
+            s=size,
+            color=color,
+            zorder=zorder,
+        )
         ax.annotate(
             trial.label,
             (trial.width_depth_ratio, trial.loss),
@@ -164,26 +139,20 @@ def make_plot(trials: list[ShapeTrial], output_path: Path) -> None:
             ha="center",
             fontsize=8,
         )
-    if optimum_ratio is not None and optimum_loss is not None:
-        ax.axvline(
-            optimum_ratio,
-            linestyle=":",
-            linewidth=1.8,
-            color="#2ca02c",
-            label=f"Fitted valley at ratio={optimum_ratio:.1f}",
-        )
-        ax.scatter(
-            [optimum_ratio],
-            [optimum_loss],
-            s=80,
-            color="#2ca02c",
-            zorder=4,
-        )
+    ax.axvline(
+        winning_trial.width_depth_ratio,
+        linestyle=":",
+        linewidth=1.8,
+        color="#d62728",
+        label=f"Winner ratio={winning_trial.width_depth_ratio:.0f}",
+    )
     ax.set_xscale("log", base=2)
     ax.set_xlabel("Width/depth ratio (d_model / num_layers)")
     ax.set_ylabel("Best loss after LR sweep")
     ax.set_title("Best observed loss by candidate shape")
     ax.grid(True, alpha=0.25)
+    ax.scatter([], [], s=140, color="#d62728", label="Selected anchor winner")
+    ax.scatter([], [], s=100, color="#ff7f0e", label="Other top-3 shapes")
     ax.legend(frameon=False)
 
     fig.suptitle(

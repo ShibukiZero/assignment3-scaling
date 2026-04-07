@@ -70,7 +70,7 @@ The candidate shapes were:
 - `(d_model=768, num_layers=4, num_heads=12)`
 - `(d_model=1024, num_layers=2, num_heads=16)`
 
-Each candidate shape was evaluated with a local learning-rate sweep `\{1e-4, 2e-4, 4e-4, 8e-4, 1e-3\}`. This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at `d_model / num_heads = 64` for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio `d_model / num_layers`, with one curve per learning rate and a second summary curve showing the best loss achieved by each candidate shape after its local LR sweep. For visualization, it is also reasonable to overlay a smooth quadratic fit on this best-loss profile and mark the fitted valley, but our actual decision rule remained the simpler and more reproducible one: compare the best observed loss achieved by each candidate shape.
+Each candidate shape was evaluated with a local learning-rate sweep `\{1e-4, 2e-4, 4e-4, 8e-4, 1e-3\}`. This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at `d_model / num_heads = 64` for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio `d_model / num_layers`, with one curve per learning rate and a second summary panel showing the best loss achieved by each candidate shape after its local LR sweep. We use this second panel only as an observed profile over the tested shapes, highlighting the winner and the next-best candidates, rather than treating it as a continuous one-dimensional function that must be fit by a smooth curve.
 
 The best observed configuration in this fixed-`N` comparison was `(640, 5, 10)`, with the next-best shapes being `(1024, 2, 16)` and `(768, 4, 12)`. We used this result to define the deterministic model family for the rest of Chapter 3. Concretely, we fixed two structural rules: `head_dim = 64`, so `num_heads = d_model / 64`, and the anchor width/depth ratio from the winning configuration, so `d_model / num_layers = 640 / 5 = 128`. Combined with the assignment's parameter-count approximation
 
@@ -90,7 +90,9 @@ In practice, we further restricted the main IsoFLOPs experiments to the 7 exact 
 
 This restriction deliberately traded some global search coverage for a much cleaner and more interpretable scaling-law experiment: after this point, the main search no longer had to reason about arbitrary architecture shapes, and could focus on how the optimal parameter count changes with compute budget.
 
-`TODO`: Insert the fixed-`N` shape-search figure from `3_1_1_shape_lr_sweep`.
+![Fixed-N shape search](artifacts/experiments/ch3/3_1_1_shape_lr_sweep/shape_search_profile.png)
+
+Figure 3 summarizes this fixed-`N` shape search. The left panel shows the local learning-rate sweeps for all candidate shapes, plotted against the width/depth ratio `d_model / num_layers`. The right panel collapses each candidate to its best observed loss after the local LR sweep, making it clear that `(640, 5, 10)` is the strongest anchor configuration among the tested shapes, with `(1024, 2, 16)` and `(768, 4, 12)` as the next-best alternatives.
 
 ### 3. Hyperparameter Calibration
 
