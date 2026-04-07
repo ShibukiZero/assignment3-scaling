@@ -1,0 +1,33 @@
+{
+  "target_flops": 1e+19,
+  "adopted_rules": {
+    "n_opt_formula": "N_opt(C) = 3.624676e-05 * C^0.681608",
+    "lr_formula": "min(1e-3, 9e-4 * (N / 42467328)^(-0.4716889721))",
+    "loss_formula": "L(C) = 14.923424 + -0.644605 * log10(C)",
+    "batch_size": 128
+  },
+  "continuous_prediction": {
+    "predicted_optimal_n": 323457053.9701468,
+    "ideal_d_model": 1511.0602578987207,
+    "ideal_num_layers": 11.805158264833755,
+    "ideal_num_heads": 23.61031652966751
+  },
+  "selected_legal_shape": {
+    "d_model": 1536,
+    "num_layers": 12,
+    "num_heads": 24,
+    "estimated_parameters": 339738624,
+    "relative_parameter_error": 0.05033611055938177,
+    "ratio_error": 0.0,
+    "family_score": 0.055658247340154135
+  },
+  "selected_hyperparameters": {
+    "batch_size": 128,
+    "learning_rate": 0.00033749311833537965
+  },
+  "predicted_final_training_loss": 2.6759200629656323,
+  "constraint_notes": {
+    "api_service_limits_used": false,
+    "selection_rule": "Use an unconstrained discrete architecture near the continuous family estimate, while preserving head_dim=64 and the width/depth prior."
+  }
+}

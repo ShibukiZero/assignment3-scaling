@@ -204,15 +204,40 @@ Among the queried budgets, the strongest direct support comes from `3e16`, `6e16
 
 ### 7. Final `1e19` Prediction
 
-Using the adopted quadratic-derived power law, our current predicted compute-optimal parameter count at `1e19` FLOPs is approximately `3.23e8` parameters.
+We generated the final prediction with a dedicated post-processing script that combines the adopted `N_opt(C)` law, the unconstrained deterministic architecture family, the adopted `lr(N)` rule, the fixed `batch_size`, and the adopted loss law. The resulting JSON artifact is archived at `artifacts/experiments/ch3/3_4_3_final_prediction/final_prediction.json`.
+
+Using the adopted quadratic-derived power law, our predicted compute-optimal parameter count at `1e19` FLOPs is approximately `3.23e8` non-embedding parameters.
+
+The corresponding continuous family estimate is:
+
+- `d_model ≈ 1511.06`
+- `num_layers ≈ 11.81`
+- `num_heads ≈ 23.61`
+
+To produce a concrete architecture, we discretized this continuous prediction while preserving the same family rules used throughout the project:
+
+- `head_dim = 64`
+- `num_heads = d_model / 64`
+- `d_model / num_layers ≈ 128`
+
+The selected final architecture is:
+
+- `d_model = 1536`
+- `num_layers = 12`
+- `num_heads = 24`
+
+This architecture has an estimated parameter count of `339,738,624`, which is about `5.03%` above the continuous optimum and is therefore a close discrete realization of the predicted target scale.
+
+The final training hyperparameters are:
+
+- `batch_size = 128`
+- `learning_rate = 3.3749e-4`
 
 For the final training loss, we use the observed-best-loss rule introduced in Section 3 and adopt the log-linear fit:
 
 `L(C) = 14.923424 - 0.644605 * log10(C)`
 
 with `R^2 = 0.9560`. Extrapolated to `1e19` FLOPs, this fit predicts a final training loss of approximately `2.676`.
-
-`TODO`: Map the predicted parameter count to a final architecture and state the final architecture-specific hyperparameters.
 
 ### 8. Reproducibility and Limitations
 
