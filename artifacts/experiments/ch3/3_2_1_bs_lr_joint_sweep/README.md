@@ -30,6 +30,10 @@
   - `7 * 2 * 3 * 1e16 = 4.2e17` FLOPs
 - Grid file:
   - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/grid.json`
+- Plotting helper:
+  - `artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/plot_bs_lr_calibration.py`
+- Remote plotting command after `results.json` is available:
+  - `uv run python artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/plot_bs_lr_calibration.py`
 - The runner writes `results.json` directly into this directory by default.
 
 ## Outcome

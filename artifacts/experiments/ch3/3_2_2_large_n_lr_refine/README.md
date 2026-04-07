@@ -24,6 +24,10 @@
   - `15 * 1e16 = 1.5e17` FLOPs
 - Grid file:
   - `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/grid.json`
+- Plotting helper:
+  - `artifacts/experiments/ch3/3_2_2_large_n_lr_refine/plot_lr_rule.py`
+- Remote plotting command after `results.json` is available:
+  - `uv run python artifacts/experiments/ch3/3_2_2_large_n_lr_refine/plot_lr_rule.py`
 - The runner writes `results.json` directly into this directory by default.
 
 ## Outcome

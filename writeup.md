@@ -96,7 +96,37 @@ Figure 3 summarizes this fixed-`N` shape search. The left panel shows the local 
 
 ### 3. Hyperparameter Calibration
 
-`TODO`: Explain how `batch_size` and `learning_rate` were selected after fixing the architecture family. Distinguish between the joint `bs/lr` sweep and the large-`N` learning-rate refinement.
+After fixing the architecture family, the next question was how to choose `batch_size` and `learning_rate` for the main IsoFLOPs sweeps. We treated this as a calibration stage rather than folding it into the final scaling-law fit. The point of this stage was to reduce optimizer-related variance before spending most of the remaining budget on `N_opt(C)`.
+
+We first ran a joint `(batch_size, learning_rate)` sweep over the 7 exact-family shapes at a fixed `train_flops = 1e16`. The tested batch sizes were `128` and `256`, and the tested learning rates were `6e-4`, `8e-4`, and `1e-3`. Figure 4 shows the resulting calibration plot. The most important conclusion from this experiment is that `batch_size = 128` consistently outperformed `256` across the entire exact-family range. This gave us a simple and stable rule for the rest of Chapter 3: fix `batch_size = 128` and do not continue to spend budget on batch-size comparisons during the main IsoFLOPs stage.
+
+![Joint batch-size / learning-rate calibration](artifacts/experiments/ch3/3_2_1_bs_lr_joint_sweep/bs_lr_calibration.png)
+
+Figure 4 shows that the preferred learning-rate region is not constant across model size. Small and medium models perform best at the top end of the allowed LR range, while larger models begin to prefer smaller learning rates. This is exactly the pattern we would expect if larger models require more conservative optimization. At the same time, the figure also shows a practical complication: the small- and medium-`N` region is censored by the API ceiling at `1e-3`, so it would be misleading to force a single smooth global fit for `lr(N)` at this point.
+
+We therefore ran a second, more targeted calibration experiment on the largest three shapes only, again at `train_flops = 1e16` and with `batch_size = 128`, but using denser local LR windows. This refinement produced the following large-`N` optima:
+
+- `N = 42,467,328` -> `lr = 9e-4`
+- `N = 67,436,544` -> `lr = 7e-4`
+- `N = 100,663,296` -> `lr = 6e-4`
+
+Combining this refinement with the earlier joint sweep gave the exact-family lookup rule used in the downstream IsoFLOPs experiments:
+
+- `N = 1,572,864` -> `lr = 1e-3`
+- `N = 5,308,416` -> `lr = 1e-3`
+- `N = 12,582,912` -> `lr = 1e-3`
+- `N = 24,576,000` -> `lr = 1e-3`
+- `N = 42,467,328` -> `lr = 9e-4`
+- `N = 67,436,544` -> `lr = 7e-4`
+- `N = 100,663,296` -> `lr = 6e-4`
+
+For interpolation outside these discrete family points, we also recorded a capped large-`N` rule:
+
+`lr(N) = min(1e-3, 9e-4 * (N / 42467328)^(-0.4716889721)).`
+
+![Final learning-rate rule](artifacts/experiments/ch3/3_2_2_large_n_lr_refine/lr_rule.png)
+
+Figure 5 summarizes the final learning-rate rule used in the main IsoFLOPs sweeps. We treat the exact-family lookup as the primary source of truth and the capped power law only as a compact interpolation rule. In short, this calibration stage fixed `batch_size = 128` globally and established that larger models prefer smaller learning rates, which allowed the subsequent IsoFLOPs experiments to vary model size without repeatedly re-solving the optimizer-tuning problem.
 
 ### 4. IsoFLOPs Experiments and Observed Optima
 
