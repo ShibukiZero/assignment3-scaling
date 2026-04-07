@@ -60,7 +60,37 @@ This allocation matches the intended priorities of the project. Only a minority 
 
 ### 2. Search-Space Restriction
 
-`TODO`: Explain how the architecture search space was restricted before the main IsoFLOPs sweep. Include the fixed-`N` shape-sweep logic and the final deterministic family used later.
+Before spending most of the budget on IsoFLOPs sweeps, we first restricted the architecture search space with a fixed-`N` shape experiment. The purpose of this step was to decide how to map a target parameter count `N` to a concrete transformer shape, rather than to fit the final scaling law directly. We therefore chose a single anchor parameter scale near `N \approx 2.5 \times 10^7`, fixed `train_flops = 1e16` and `batch_size = 128`, and compared several candidate shapes that had similar parameter counts but very different width/depth ratios.
+
+The candidate shapes were:
+
+- `(d_model=384, num_layers=14, num_heads=6)`
+- `(d_model=512, num_layers=8, num_heads=8)`
+- `(d_model=640, num_layers=5, num_heads=10)`
+- `(d_model=768, num_layers=4, num_heads=12)`
+- `(d_model=1024, num_layers=2, num_heads=16)`
+
+Each candidate shape was evaluated with a local learning-rate sweep `\{1e-4, 2e-4, 4e-4, 8e-4, 1e-3\}`. This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at `d_model / num_heads = 64` for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio `d_model / num_layers`, with one curve per learning rate and a second summary curve showing the best loss achieved by each candidate shape after its local LR sweep. For visualization, it is also reasonable to overlay a smooth quadratic fit on this best-loss profile and mark the fitted valley, but our actual decision rule remained the simpler and more reproducible one: compare the best observed loss achieved by each candidate shape.
+
+The best observed configuration in this fixed-`N` comparison was `(640, 5, 10)`, with the next-best shapes being `(1024, 2, 16)` and `(768, 4, 12)`. We used this result to define the deterministic model family for the rest of Chapter 3. Concretely, we fixed two structural rules: `head_dim = 64`, so `num_heads = d_model / 64`, and the anchor width/depth ratio from the winning configuration, so `d_model / num_layers = 640 / 5 = 128`. Combined with the assignment's parameter-count approximation
+
+`N = 12 * num_layers * d_model^2,`
+
+this gave a one-parameter architecture family that could be indexed by target parameter count.
+
+In practice, we further restricted the main IsoFLOPs experiments to the 7 exact legal shapes on this anchor-ratio family:
+
+- `(256, 2, 4)`
+- `(384, 3, 6)`
+- `(512, 4, 8)`
+- `(640, 5, 10)`
+- `(768, 6, 12)`
+- `(896, 7, 14)`
+- `(1024, 8, 16)`
+
+This restriction deliberately traded some global search coverage for a much cleaner and more interpretable scaling-law experiment: after this point, the main search no longer had to reason about arbitrary architecture shapes, and could focus on how the optimal parameter count changes with compute budget.
+
+`TODO`: Insert the fixed-`N` shape-search figure from `3_1_1_shape_lr_sweep`.
 
 ### 3. Hyperparameter Calibration
 

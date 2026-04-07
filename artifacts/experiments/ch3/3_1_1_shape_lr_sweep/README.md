@@ -34,6 +34,16 @@
   - incremental cost after the first run: `5 * 1e16 = 5e16` FLOPs
 - Grid file:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
+- Plotting helper:
+  - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/plot_shape_search.py`
+- Intended figure:
+  - a fixed-`N`, fixed-`train_flops` shape-search profile
+  - x-axis: width/depth ratio `d_model / num_layers`
+  - y-axis: final training loss
+  - panel 1 overlays all tested learning rates
+  - panel 2 shows the best loss per candidate shape after the local LR sweep
+  - panel 2 also adds a quadratic fit and a fitted valley marker as a visual aid
+  - the actual Chapter 3 shape-family decision is still based on the best observed loss, not on the fitted valley alone
 - The runner writes `results.json` directly into this directory by default.
 - Final conclusion:
   - see `shape_family_decision.md` in this directory
@@ -43,3 +53,5 @@
   - by default, the managed script powers off the host after a successful unattended run
 - Interactive alternative when the local API is already running:
   - `uv run python scripts/run_api_experiment_grid.py artifacts/experiments/ch3/3_1_1_shape_lr_sweep/grid.json`
+- Remote plotting command after `results.json` is available:
+  - `uv run python artifacts/experiments/ch3/3_1_1_shape_lr_sweep/plot_shape_search.py`
