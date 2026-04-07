@@ -314,7 +314,8 @@ This file is the working log for Chapter 3 experiments only.
   - compare observed-min and quadratic-derived `N_opt(C)` fits
 - Config:
   - reuse the archived Chapter 3 IsoFLOPs results
-  - for the quadratic-derived analysis, drop the smallest `N` point from each per-budget quadratic fit
+  - keep all plotted `N` points inside each per-budget quadratic fit
+  - for the quadratic-derived power-law regression, drop the two smallest compute budgets
   - extend the fitted scaling-law plots to the target FLOPs budget `1e19`
 - Why we are doing it:
   - we want one place to archive the main Chapter 3 scaling-law figures
@@ -322,6 +323,9 @@ This file is the working log for Chapter 3 experiments only.
 - Output directory:
   - `artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/`
 - Current status:
-  - planned
+  - completed
   - commands are documented in `artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/README.md`
   - the archived per-budget quadratic profile figure should replace the older `.agents/logs/ch3_isoflops_quadratic_explore/` version
+  - final reporting decision:
+    - adopt the quadratic-derived power law as the primary `N_opt(C)` law
+    - keep the observed-minimum fit as a robustness baseline

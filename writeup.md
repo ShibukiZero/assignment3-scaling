@@ -150,7 +150,7 @@ The low-budget regime behaved very differently from the medium-budget regime. At
 
 This progression already suggests that the compute-optimal model size grows rapidly once the budget moves out of the left-censored regime.
 
-To better inspect the local profile shape, we also performed an auxiliary quadratic-profile analysis on the IsoFLOPs curves. For this analysis, all tested budgets and all plotted `N` points remained visible in the profile plot, and we fit a quadratic in log-`N` to each per-budget profile. This was not our primary decision rule, but it was useful as a diagnostic for checking whether the medium- and high-budget profiles looked locally valley-shaped rather than purely monotone.
+To better inspect the local profile shape, we also performed a quadratic-profile analysis on the IsoFLOPs curves. For this analysis, all tested budgets and all plotted `N` points remained visible in the profile plot, and we fit a quadratic in log-`N` to each per-budget profile. We ultimately adopted this quadratic-profile route as our primary scaling-law extraction method, because it uses the local shape of each medium- and high-budget curve instead of relying only on the single best discrete point in a coarse family.
 
 ![Quadratic IsoFLOPs profiles](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/isoflops_quadratic_profiles.png)
 
@@ -158,19 +158,9 @@ Figure 6 shows the resulting per-budget profiles as small multiples, which makes
 
 ### 5. Scaling-Law Fit
 
-We considered two different ways of converting the IsoFLOPs experiments into a scaling law for `N_opt(C)`.
+We considered two different ways of converting the IsoFLOPs experiments into a scaling law for `N_opt(C)`. Our final choice is the quadratic-derived fit, while the observed-minimum fit is retained as a comparison baseline.
 
-The first method uses the best observed point at each budget. Because the low-budget budgets are boundary-censored, we do not treat them as clean interior optima in the fit. Instead, we use only the non-boundary observed minima, i.e. the points at `3e16`, `6e16`, and `1e17`, and fit a power law in log-log space:
-
-`N_opt(C) = 5.971429e-15 * C^1.271250`
-
-with `R^2 = 0.9998`. Extrapolating this fit to the target budget gives a predicted optimal model size of approximately `8.51e9` parameters at `1e19` FLOPs.
-
-![Observed-minimum scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/observed_nopt_scaling.png)
-
-Figure 7 shows the observed-minimum `N_opt(C)` progression together with the fitted power law and the extrapolated prediction at `1e19` FLOPs. This fit is the most literal summary of the queried runs, but it relies only on the three interior points `3e16`, `6e16`, and `1e17`, because the lower-budget points are still censored by the family lower bound.
-
-The second method uses the quadratic-profile optima extracted from the auxiliary per-budget fits. For this method, all budgets and all plotted `N` points are still shown in the profile analysis, but the power-law fit itself drops the two smallest compute budgets before regression. The resulting quadratic-derived power law is:
+The primary method uses the quadratic-profile optima extracted from the per-budget fits. For this method, all budgets and all plotted `N` points are still shown in the profile analysis, but the power-law fit itself drops the two smallest compute budgets before regression. The resulting quadratic-derived power law is:
 
 `N_opt(C) = 3.624676e-05 * C^0.681608`
 
@@ -178,13 +168,21 @@ with `R^2 = 0.9816`. Extrapolated to `1e19` FLOPs, this law predicts an optimal 
 
 ![Quadratic-derived scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/quadratic_nopt_scaling.png)
 
-Figure 8 shows the quadratic-derived `N_opt(C)` progression together with its fitted power law, extended to the target budget `1e19`. In this auxiliary analysis, the per-budget quadratic fits are computed on the full plotted profiles, while the final log-log regression omits only the two smallest compute budgets. Relative to the observed-minimum fit, this method produces a much smaller exponent and therefore a substantially more conservative large-scale prediction.
+Figure 7 shows the quadratic-derived `N_opt(C)` progression together with its fitted power law, extended to the target budget `1e19`. In this adopted analysis, the per-budget quadratic fits are computed on the full plotted profiles, while the final log-log regression omits only the two smallest compute budgets. Relative to the discrete observed-minimum fit, this method produces a flatter scaling trajectory and a more conservative large-scale prediction. We prefer it because it better matches the way Chinchilla-style IsoFLOPs profiles are intended to be interpreted: as local valleys that should be smoothed before extracting `N_opt(C)`.
+
+For reference, we also fit a law using only the best observed point at each budget. Because the low-budget budgets are boundary-censored, we do not treat them as clean interior optima in that fit. Instead, we use only the non-boundary observed minima, i.e. the points at `3e16`, `6e16`, and `1e17`, and fit a power law in log-log space:
+
+`N_opt(C) = 5.971429e-15 * C^1.271250`
+
+with `R^2 = 0.9998`. Extrapolating this fit to the target budget gives a predicted optimal model size of approximately `8.51e9` parameters at `1e19` FLOPs.
+
+![Observed-minimum scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/observed_nopt_scaling.png)
+
+Figure 8 shows the observed-minimum `N_opt(C)` progression together with the fitted power law and the extrapolated prediction at `1e19` FLOPs. This fit is the most literal summary of the queried runs, but it relies only on the three interior points `3e16`, `6e16`, and `1e17`, because the lower-budget points are still censored by the family lower bound.
 
 ![Observed vs quadratic-derived scaling laws](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/nopt_fit_comparison.png)
 
-Figure 9 overlays the observed-minimum points, the quadratic-derived optima, and their two fitted scaling laws on the same axes. This comparison makes the tradeoff explicit: the observed fit tracks the literal queried minima more aggressively, while the quadratic-derived fit smooths the medium-budget curves and yields a flatter `N_opt(C)` trajectory.
-
-At this stage, we treat the observed-minimum fit as the more direct summary of the actual queried runs, while treating the quadratic-derived fit as a structured robustness check that partially compensates for the coarse discreteness of the tested family. The final prediction therefore has to balance these two perspectives: the observed fit is closer to the literal experimental minima, while the quadratic-derived fit is smoother but introduces stronger modeling assumptions.
+Figure 9 overlays the observed-minimum points, the quadratic-derived optima, and their two fitted scaling laws on the same axes. This comparison makes the tradeoff explicit: the observed fit tracks the literal queried minima more aggressively, while the quadratic-derived fit smooths the medium-budget curves and yields a flatter `N_opt(C)` trajectory. We use the quadratic-derived fit as the final scaling law and keep the observed-minimum fit only as a robustness baseline.
 
 ### 6. Fit Quality and Uncertainty
 
@@ -192,7 +190,9 @@ At this stage, we treat the observed-minimum fit as the more direct summary of t
 
 ### 7. Final `1e19` Prediction
 
-`TODO`: Report the final predicted optimal parameter count, chosen architecture, chosen hyperparameters, and predicted final training loss at `1e19` FLOPs.
+Using the adopted quadratic-derived power law, our current predicted compute-optimal parameter count at `1e19` FLOPs is approximately `3.23e8` parameters.
+
+`TODO`: Map this parameter-count prediction to a final architecture, state the final hyperparameters under that architecture, and report the predicted final training loss at `1e19` FLOPs.
 
 ### 8. Reproducibility and Limitations
 
