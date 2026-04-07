@@ -40,23 +40,48 @@ As a sanity check, the fitted exponents satisfy `0.468683 + 0.531317 ≈ 1`, whi
 **Deliverable:** A typeset write-up that contains a complete description of your approach and methodology for fitting a scaling law. In addition, it should describe how you use the scaling law to predict the optimal model size for the given FLOPs budget, and your predicted values. The write-up should include commentary about why you made particular design decisions, and the description should be detailed enough to reproduce your approach and results.  
 
 **Answer:**  
-`Draft scaffold for the final write-up; fill after API experiments are complete.`
+### 1. Goal and Budgeting Strategy
 
-`TODO`: Briefly state the goal: predict the compute-optimal model size, hyperparameters, and final training loss at `1e19` FLOPs under the `2e18`-FLOP experimental budget.
+Our goal was to predict the compute-optimal model size, training hyperparameters, and final training loss at a target budget of `1e19` FLOPs, while keeping all exploratory API queries within the assignment's `2e18`-FLOP budget. Instead of treating the API as a black-box optimization problem over the full configuration space, we explicitly split the budget into three stages, each answering a different question needed for the final scaling-law fit.
 
-`TODO`: Experimental design. Explain how the query budget was allocated across model size sweeps, learning-rate checks, and batch-size comparisons. State which runs were used to identify approximate IsoFLOPs optima and which runs were used to study hyperparameter sensitivity.
+In the first stage, we allocated a small fraction of the budget to fixed-`N` shape search. The purpose of this stage was not to fit the final scaling law, but to determine a deterministic model family by comparing several architecture shapes with roughly matched parameter counts and identifying a stable width/depth ratio and head-dimension rule. In the second stage, after fixing this shape family, we used another controlled portion of the budget to calibrate hyperparameters under IsoFLOPs-style conditions. In particular, we studied how `batch_size` and `learning_rate` should be chosen once the architecture family had been fixed, including a separate refinement pass for the largest models. Only in the third stage did we spend the bulk of the budget on the main IsoFLOPs experiments, whose purpose was to estimate `N_opt(C)` directly by comparing model sizes across multiple compute budgets.
 
-`TODO`: Model-size accounting. Explain how non-embedding parameter count was estimated from architecture choices using `N = 12 * num_layers * d_model^2`, and how dataset size or implied training tokens were derived from `C = 6ND`.
+This staged allocation was deliberate. The first two stages reduced variance from architecture and optimizer choices before the main scaling-law fit, so that the final IsoFLOPs sweeps could focus on the central question of interest: how the compute-optimal model size grows with compute budget. The final report therefore does not mirror the chronological order of every API call, but it does preserve this experimental logic: first restrict the search space, then calibrate hyperparameters, and finally fit the scaling law on the resulting family.
 
-`TODO`: Scaling-law fit. Describe the exact fitting procedure used on the queried runs. If the final method follows the Chapter 2 workflow, explain how the minimum-loss run was selected for each budget and how the resulting `<C_i, N_opt(C_i)>` points were fit in log-log space. If a different method is used, justify the change.
+Table 1 summarizes the actual budget allocation implied by the experiment logs. Using the cumulative `total_flops_used` reported by the API after each stage, the full fixed-`N` shape search consumed `2.5e17` FLOPs, the hyperparameter-calibration stage consumed an additional `5.1e17` FLOPs, and the final IsoFLOPs stage consumed the remaining `1.193e18` FLOPs. In total, the project used about `1.953e18` FLOPs, i.e. about `97.7%` of the allowed `2e18`-FLOP budget.
 
-`TODO`: Hyperparameter selection. Describe how `learning_rate`, `batch_size`, and architectural shape choices were chosen for the predicted optimal model size, and explain any trends observed at smaller scales that motivated the final choice.
+| Stage | Purpose | Cumulative FLOPs after stage | Incremental FLOPs spent in stage | Share of used budget |
+| --- | --- | ---: | ---: | ---: |
+| Stage 1 | Fixed-`N` shape-family search | `2.5e17` | `2.5e17` | `12.8%` |
+| Stage 2 | Hyperparameter calibration (`batch_size`, `learning_rate`) | `7.6e17` | `5.1e17` | `26.1%` |
+| Stage 3 | Main IsoFLOPs experiments for fitting `N_opt(C)` | `1.953e18` | `1.193e18` | `61.1%` |
 
-`TODO`: Goodness of fit and limitations. Comment on how well the fitted law matches the observed experimental points, where the fit appears noisy, and what assumptions are most likely to break when extrapolating to `1e19` FLOPs.
+This allocation matches the intended priorities of the project. Only a minority of the budget was spent on architecture and optimizer calibration, while the majority was reserved for the final IsoFLOPs sweeps that directly support the scaling-law fit.
 
-`TODO`: Final prediction paragraph. Report:
-- predicted optimal parameter count at `1e19` FLOPs
-- chosen `d_model`, `num_layers`, `num_heads`, `batch_size`, and `learning_rate`
-- predicted final training loss
+### 2. Search-Space Restriction
 
-`TODO`: Insert the final plots and any concise tables needed to make the procedure reproducible.
+`TODO`: Explain how the architecture search space was restricted before the main IsoFLOPs sweep. Include the fixed-`N` shape-sweep logic and the final deterministic family used later.
+
+### 3. Hyperparameter Calibration
+
+`TODO`: Explain how `batch_size` and `learning_rate` were selected after fixing the architecture family. Distinguish between the joint `bs/lr` sweep and the large-`N` learning-rate refinement.
+
+### 4. IsoFLOPs Experiments and Observed Optima
+
+`TODO`: Describe the IsoFLOPs experiments used to estimate `N_opt(C)`. Include which compute budgets were tested, which model sizes were compared at each budget, and which low-budget points were boundary-censored.
+
+### 5. Scaling-Law Fit
+
+`TODO`: Explain how the `<C_i, N_opt(C_i)>` points were converted into a fitted scaling law. State whether the final fit uses all points equally or treats low-budget boundary points separately.
+
+### 6. Fit Quality and Uncertainty
+
+`TODO`: Comment on goodness of fit, uncertainty, and the main sources of extrapolation risk.
+
+### 7. Final `1e19` Prediction
+
+`TODO`: Report the final predicted optimal parameter count, chosen architecture, chosen hyperparameters, and predicted final training loss at `1e19` FLOPs.
+
+### 8. Reproducibility and Limitations
+
+`TODO`: Add any concise tables, plots, and limitations needed to make the methodology reproducible.
