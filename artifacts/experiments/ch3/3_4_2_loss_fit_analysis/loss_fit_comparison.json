@@ -1,0 +1,86 @@
+{
+  "note": "Exploratory Chapter 3 optimal-loss fits. By default, the best-loss sequence is derived from observed best losses, and the three smallest compute budgets are dropped from the global fit.",
+  "fit_selection_rule": {
+    "loss_sequence": "Use observed best losses as the primary optimal-loss proxy.",
+    "global_fit": "Drop the three smallest compute budgets from the regression.",
+    "plotted_points": "Keep all budgets visible in the figure."
+  },
+  "log_linear_fit": {
+    "intercept": 14.923424104464745,
+    "slope_log10_c": -0.6446054758683744,
+    "r_squared": 0.9560159688727816,
+    "target_flops": 1e+19,
+    "predicted_loss_at_target_flops": 2.6759200629656323,
+    "formula": "L(C) = 14.923424 + -0.644605 * log10(C)"
+  },
+  "offset_power_law_fit": {
+    "loss_floor": 3.917756582416665,
+    "amplitude": 1.8161289272715005e+23,
+    "alpha": 1.4356146908985523,
+    "r_squared": 0.9999999875426301,
+    "target_flops": 1e+19,
+    "predicted_loss_at_target_flops": 3.9178526258217223,
+    "formula": "L(C) = 3.917757 + 1.816129e+23 * C^(-1.435615)"
+  },
+  "fit_budgets": [
+    3e+16,
+    6e+16,
+    1e+17
+  ],
+  "budgets": [
+    {
+      "compute_budget": 3000000000000000.0,
+      "observed_best_loss": 5.212776184082031,
+      "observed_best_n": 1572864,
+      "quadratic_vertex_loss": 5.004064407138221,
+      "quadratic_vertex_n": 274310.66472083627,
+      "opens_upward": true,
+      "vertex_in_observed_range": false
+    },
+    {
+      "compute_budget": 6000000000000000.0,
+      "observed_best_loss": 4.968860626220703,
+      "observed_best_n": 1572864,
+      "quadratic_vertex_loss": 4.959479370182478,
+      "quadratic_vertex_n": 1719579.0561667923,
+      "opens_upward": true,
+      "vertex_in_observed_range": true
+    },
+    {
+      "compute_budget": 1e+16,
+      "observed_best_loss": 4.686894416809082,
+      "observed_best_n": 1572864,
+      "quadratic_vertex_loss": 4.643670460163278,
+      "quadratic_vertex_n": 3045378.9248692924,
+      "opens_upward": true,
+      "vertex_in_observed_range": true
+    },
+    {
+      "compute_budget": 3e+16,
+      "observed_best_loss": 4.319890975952148,
+      "observed_best_n": 5308416,
+      "quadratic_vertex_loss": 4.23424751916394,
+      "quadratic_vertex_n": 5956336.173424773,
+      "opens_upward": true,
+      "vertex_in_observed_range": true
+    },
+    {
+      "compute_budget": 6e+16,
+      "observed_best_loss": 4.066396236419678,
+      "observed_best_n": 12582912,
+      "quadratic_vertex_loss": 4.030404575196773,
+      "quadratic_vertex_n": 8855458.28393346,
+      "opens_upward": true,
+      "vertex_in_observed_range": true
+    },
+    {
+      "compute_budget": 1e+17,
+      "observed_best_loss": 3.989161252975464,
+      "observed_best_n": 24576000,
+      "quadratic_vertex_loss": 3.9990980034434607,
+      "quadratic_vertex_n": 15536495.390232148,
+      "opens_upward": true,
+      "vertex_in_observed_range": true
+    }
+  ]
+}

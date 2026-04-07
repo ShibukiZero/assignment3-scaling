@@ -329,3 +329,29 @@ This file is the working log for Chapter 3 experiments only.
   - final reporting decision:
     - adopt the quadratic-derived power law as the primary `N_opt(C)` law
     - keep the observed-minimum fit as a robustness baseline
+
+## `3_4_2_loss_fit_analysis`
+
+- Experiment ID: `3_4_2_loss_fit_analysis`
+- What this analysis is:
+  - a post-experiment analysis bundle for Chapter 3 optimal-loss fits
+  - compare simple `L_opt(C)` laws after the main IsoFLOPs experiments
+- Config:
+  - reuse the archived Chapter 3 IsoFLOPs results
+  - use observed best losses as the primary per-budget loss proxy
+  - keep all plotted budgets visible
+  - drop the three smallest compute budgets from the global regression
+  - compare a log-linear fit and an offset power-law fit
+- Why we are doing it:
+  - we need a final training-loss prediction at `1e19`
+  - unlike `N_opt(C)`, the quadratic-vertex loss is not directly observed, so the loss law should stay tied to queried values
+- Output directory:
+  - `artifacts/experiments/ch3/3_4_2_loss_fit_analysis/`
+- Current status:
+  - completed
+  - archived outputs:
+    - `loss_fit_comparison.png`
+    - `loss_fit_comparison.json`
+  - final reporting decision:
+    - adopt the log-linear loss law
+    - keep the offset power-law fit as an exploratory comparison only
