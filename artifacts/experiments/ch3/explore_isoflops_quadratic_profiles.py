@@ -174,11 +174,21 @@ def make_plot(
     fit_results: dict[float, tuple[np.ndarray, QuadraticFitSummary]],
     output_path: Path,
 ) -> None:
-    fig, ax = plt.subplots(figsize=(9.5, 6), constrained_layout=True)
-    cmap = plt.get_cmap("plasma")
     budgets = list(profiles.keys())
+    ncols = 2
+    nrows = int(np.ceil(len(budgets) / ncols))
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(11, 3.5 * nrows),
+        constrained_layout=True,
+        sharex=True,
+    )
+    cmap = plt.get_cmap("plasma")
+    axes_array = np.atleast_1d(axes).ravel()
 
     for idx, compute_budget in enumerate(budgets):
+        ax = axes_array[idx]
         color = cmap(idx / max(1, len(budgets) - 1))
         points = profiles[compute_budget]
         coeffs, summary = fit_results[compute_budget]
@@ -194,7 +204,7 @@ def make_plot(
             fit_max_x = max(fit_max_x, summary.quadratic_vertex_n)
         fit_xs = np.geomspace(fit_min_x, fit_max_x, 300)
         fit_ys = np.polyval(coeffs, np.log10(fit_xs))
-        ax.plot(fit_xs, fit_ys, color=color, linestyle="--", linewidth=1.8)
+        ax.plot(fit_xs, fit_ys, color=color, linestyle="--", linewidth=2.0)
 
         ax.scatter(
             [summary.observed_best_n],
@@ -215,12 +225,25 @@ def make_plot(
                 zorder=5,
             )
 
-    ax.set_xscale("log")
-    ax.set_xlabel("Parameter count N")
-    ax.set_ylabel("Final training loss")
-    ax.set_title("Exploratory quadratic fits for Chapter 3 IsoFLOPs profiles")
-    ax.grid(True, alpha=0.25)
-    ax.legend(frameon=False, ncol=2)
+        y_min = min(float(np.min(ys)), float(np.min(fit_ys)))
+        y_max = max(float(np.max(ys)), float(np.max(fit_ys)))
+        y_pad = max(0.03, 0.08 * (y_max - y_min))
+        ax.set_ylim(y_min - y_pad, y_max + y_pad)
+        ax.set_xscale("log")
+        ax.set_title(f"C = {compute_budget:.0e}")
+        ax.grid(True, alpha=0.25)
+
+    for idx in range(len(budgets), len(axes_array)):
+        axes_array[idx].axis("off")
+
+    for ax in axes_array[::ncols]:
+        if ax.has_data():
+            ax.set_ylabel("Final training loss")
+    for ax in axes_array[-ncols:]:
+        if ax.has_data():
+            ax.set_xlabel("Parameter count N")
+
+    fig.suptitle("Exploratory quadratic fits for Chapter 3 IsoFLOPs profiles", fontsize=14)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=200)
     plt.close(fig)

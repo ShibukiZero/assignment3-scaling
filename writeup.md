@@ -154,7 +154,7 @@ To better inspect the local profile shape, we also performed an auxiliary quadra
 
 ![Quadratic IsoFLOPs profiles](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/isoflops_quadratic_profiles.png)
 
-Figure 6 shows the resulting per-budget profiles together with their quadratic fits. The key observation is that the medium- and high-budget budgets (`3e16`, `6e16`, `1e17`) exhibit much more plausible local valleys than the low-budget budgets, which is consistent with the interpretation that the low-budget regime is still truncated by the lower end of the allowed model family.
+Figure 6 shows the resulting per-budget profiles as small multiples, which makes the fitted local valleys easier to inspect than a single overlaid plot. The key observation is that the medium- and high-budget budgets (`3e16`, `6e16`, `1e17`) exhibit much more plausible local valleys than the low-budget budgets, which is consistent with the interpretation that the low-budget regime is still truncated by the lower end of the allowed model family.
 
 ### 5. Scaling-Law Fit
 

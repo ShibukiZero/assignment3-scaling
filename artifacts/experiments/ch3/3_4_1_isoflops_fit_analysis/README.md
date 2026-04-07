@@ -1,6 +1,6 @@
 # 3_4_1_isoflops_fit_analysis
 
-- Status: `planned`
+- Status: `completed`
 - Goal:
   - collect the main Chapter 3 IsoFLOPs analysis figures in one archive directory
   - compare observed-min and quadratic-derived `N_opt(C)` fits
@@ -33,9 +33,9 @@ under `.agents/logs/ch3_isoflops_quadratic_explore/`. The archived figure in
 `artifacts/` should keep all plotted budgets and all plotted `N` points visible
 when fitting each per-budget quadratic profile.
 
-Then generate the scaling-law comparison figures, again dropping the smallest
-`N` point from each quadratic profile, but keeping all plotted budgets visible.
-For the quadratic-derived power-law itself, drop the two smallest compute
+Then generate the scaling-law comparison figures, again keeping all plotted
+budgets and all plotted `N` points visible. For the quadratic-derived power-law
+itself, drop the two smallest compute
 budgets from the regression and extend the fitted laws to the target budget:
 
 ```sh
