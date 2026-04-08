@@ -1,0 +1,21 @@
+# 3_3_1_isoflops_3e15_full
+
+- Status: `planned`
+- Goal: run a full 7-shape IsoFLOPs curve at `train_flops = 3e15`.
+- Why this experiment:
+  - it is a cheap extra budget point
+  - it improves the log-budget density before the existing `1e16` curve
+- Current setup:
+  - all 7 exact anchor-ratio shapes
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `256, 384, 512, 640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+    - `1024 -> 6e-4`
+  - fixed `train_flops = 3e15`
+- Planned budget:
+  - `7 * 3e15 = 2.1e16` FLOPs
+- Grid file:
+  - `artifacts/experiments/ch3/3_3_1_isoflops_3e15_full/grid.json`
+- The runner writes `results.json` directly into this directory by default.

@@ -1,0 +1,154 @@
+{
+  "note": "Exploratory comparison between observed-min and quadratic-profile Chapter 3 scaling-law fits.",
+  "observed_min_fit": {
+    "formula": "N_opt(C) = 5.971429e-15 * C^1.271250",
+    "coefficient": 5.971429062339448e-15,
+    "slope": 1.2712501453116414,
+    "intercept_log10": -14.223921722535893,
+    "r_squared": 0.9997928299348978,
+    "target_flops": 1e+19,
+    "predicted_n_at_target_flops": 8508069686.345451,
+    "fit_budgets": [
+      3e+16,
+      6e+16,
+      1e+17
+    ],
+    "fit_selection_rule": "Use only non-boundary observed-min points."
+  },
+  "quadratic_profile_fit": {
+    "formula": "N_opt(C) = 3.624676e-05 * C^0.681608",
+    "coefficient": 3.6246761814705494e-05,
+    "slope": 0.6816077585644719,
+    "intercept_log10": -4.440730786025996,
+    "r_squared": 0.9815542235420839,
+    "target_flops": 1e+19,
+    "predicted_n_at_target_flops": 323457053.9701468,
+    "fit_budgets": [
+      1e+16,
+      3e+16,
+      6e+16,
+      1e+17
+    ],
+    "fit_selection_rule": "Use quadratic-profile optima, but drop the two smallest compute budgets from the power-law regression."
+  },
+  "budgets": [
+    {
+      "compute_budget": 3000000000000000.0,
+      "observed_best_n": 1572864,
+      "observed_best_loss": 5.212776184082031,
+      "quadratic_fit_points_n": [
+        1572864,
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544,
+        100663296
+      ],
+      "quadratic_vertex_n": 274310.66472083627,
+      "quadratic_vertex_loss": 5.004064407138221,
+      "opens_upward": true,
+      "vertex_in_observed_range": false,
+      "fit_domain_min_n": 1572864,
+      "fit_domain_max_n": 100663296
+    },
+    {
+      "compute_budget": 6000000000000000.0,
+      "observed_best_n": 1572864,
+      "observed_best_loss": 4.968860626220703,
+      "quadratic_fit_points_n": [
+        1572864,
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544,
+        100663296
+      ],
+      "quadratic_vertex_n": 1719579.0561667923,
+      "quadratic_vertex_loss": 4.959479370182478,
+      "opens_upward": true,
+      "vertex_in_observed_range": true,
+      "fit_domain_min_n": 1572864,
+      "fit_domain_max_n": 100663296
+    },
+    {
+      "compute_budget": 1e+16,
+      "observed_best_n": 1572864,
+      "observed_best_loss": 4.686894416809082,
+      "quadratic_fit_points_n": [
+        1572864,
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544,
+        100663296
+      ],
+      "quadratic_vertex_n": 3045378.9248692924,
+      "quadratic_vertex_loss": 4.643670460163278,
+      "opens_upward": true,
+      "vertex_in_observed_range": true,
+      "fit_domain_min_n": 1572864,
+      "fit_domain_max_n": 100663296
+    },
+    {
+      "compute_budget": 3e+16,
+      "observed_best_n": 5308416,
+      "observed_best_loss": 4.319890975952148,
+      "quadratic_fit_points_n": [
+        1572864,
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544,
+        100663296
+      ],
+      "quadratic_vertex_n": 5956336.173424773,
+      "quadratic_vertex_loss": 4.23424751916394,
+      "opens_upward": true,
+      "vertex_in_observed_range": true,
+      "fit_domain_min_n": 1572864,
+      "fit_domain_max_n": 100663296
+    },
+    {
+      "compute_budget": 6e+16,
+      "observed_best_n": 12582912,
+      "observed_best_loss": 4.066396236419678,
+      "quadratic_fit_points_n": [
+        1572864,
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544,
+        100663296
+      ],
+      "quadratic_vertex_n": 8855458.28393346,
+      "quadratic_vertex_loss": 4.030404575196773,
+      "opens_upward": true,
+      "vertex_in_observed_range": true,
+      "fit_domain_min_n": 1572864,
+      "fit_domain_max_n": 100663296
+    },
+    {
+      "compute_budget": 1e+17,
+      "observed_best_n": 24576000,
+      "observed_best_loss": 3.989161252975464,
+      "quadratic_fit_points_n": [
+        5308416,
+        12582912,
+        24576000,
+        42467328,
+        67436544
+      ],
+      "quadratic_vertex_n": 15536495.390232148,
+      "quadratic_vertex_loss": 3.9990980034434607,
+      "opens_upward": true,
+      "vertex_in_observed_range": true,
+      "fit_domain_min_n": 5308416,
+      "fit_domain_max_n": 67436544
+    }
+  ]
+}

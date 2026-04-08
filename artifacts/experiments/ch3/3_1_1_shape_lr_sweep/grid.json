@@ -1,0 +1,93 @@
+{
+  "experiment_id": "3_1_1_shape_lr_sweep",
+  "endpoint": "/loss",
+  "client": {
+    "max_inflight": 0
+  },
+  "shared_params": {
+    "batch_size": 128,
+    "train_flops": 10000000000000000
+  },
+  "axes": [
+    {
+      "name": "shape",
+      "values": [
+        {
+          "id": "shape_384_14_6",
+          "params": {
+            "d_model": 384,
+            "num_layers": 14,
+            "num_heads": 6
+          }
+        },
+        {
+          "id": "shape_512_8_8",
+          "params": {
+            "d_model": 512,
+            "num_layers": 8,
+            "num_heads": 8
+          }
+        },
+        {
+          "id": "shape_640_5_10",
+          "params": {
+            "d_model": 640,
+            "num_layers": 5,
+            "num_heads": 10
+          }
+        },
+        {
+          "id": "shape_768_4_12",
+          "params": {
+            "d_model": 768,
+            "num_layers": 4,
+            "num_heads": 12
+          }
+        },
+        {
+          "id": "shape_1024_2_16",
+          "params": {
+            "d_model": 1024,
+            "num_layers": 2,
+            "num_heads": 16
+          }
+        }
+      ]
+    },
+    {
+      "name": "learning_rate",
+      "values": [
+        {
+          "id": "lr_1e-4",
+          "params": {
+            "learning_rate": 0.0001
+          }
+        },
+        {
+          "id": "lr_2e-4",
+          "params": {
+            "learning_rate": 0.0002
+          }
+        },
+        {
+          "id": "lr_4e-4",
+          "params": {
+            "learning_rate": 0.0004
+          }
+        },
+        {
+          "id": "lr_8e-4",
+          "params": {
+            "learning_rate": 0.0008
+          }
+        },
+        {
+          "id": "lr_1e-3",
+          "params": {
+            "learning_rate": 0.001
+          }
+        }
+      ]
+    }
+  ]
+}

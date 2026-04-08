@@ -1,0 +1,29 @@
+# 3_3_5_isoflops_1e17_bracket
+
+- Status: `planned`
+- Goal: test an aggressive right-shifted bracket at `train_flops = 1e17`.
+- Why this experiment:
+  - `3e16` selected `384_3_6`
+  - `6e16` selected `512_4_8`
+  - we want a denser local IsoFLOPs profile around the likely optimum at `1e17`
+- Current setup:
+  - shapes:
+    - `d_model=384, num_layers=3, num_heads=6`
+    - `d_model=512, num_layers=4, num_heads=8`
+    - `d_model=640, num_layers=5, num_heads=10`
+    - `d_model=768, num_layers=6, num_heads=12`
+    - `d_model=896, num_layers=7, num_heads=14`
+  - fixed `batch_size = 128`
+  - fixed per-shape LR lookup:
+    - `384 -> 1e-3`
+    - `512 -> 1e-3`
+    - `640 -> 1e-3`
+    - `768 -> 9e-4`
+    - `896 -> 7e-4`
+  - fixed `train_flops = 1e17`
+- Planned budget:
+  - full 5-point profile: `5 * 1e17 = 5e17` FLOPs
+  - incremental cost after the first 3-point run: `2 * 1e17 = 2e17` FLOPs
+- Grid file:
+  - `artifacts/experiments/ch3/3_3_5_isoflops_1e17_bracket/grid.json`
+- The runner writes `results.json` directly into this directory by default.
