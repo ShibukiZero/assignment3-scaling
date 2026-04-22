@@ -27,6 +27,7 @@ uv run which python
 
 This repository now includes a lightweight preprocessing pipeline for training a tokenizer and
 encoding a corpus into flat token-id binaries.
+The current examples in this section assume the FineWeb-Edu corpus stored on the remote server.
 
 A `2-4 GiB` tokenizer-training subset is a reasonable default for a `32K` byte-level BPE tokenizer.
 For large web corpora, it is often better to train on a reproducible random subset first instead of
@@ -115,242 +116,97 @@ later training or API-serving experiments.
 
 ## Assignment API Scaffold
 
-This repository includes a local assignment-style API replica with:
+This repository includes a local assignment-style API replica for querying training loss on the
+tokenized corpus you prepared above.
+
+Available endpoints:
 
 - `GET /loss`
 - `GET /total_flops_used`
 - `GET /previous_runs`
 
-It supports:
+What it is useful for:
 
-- assignment-range parameter validation
-- per-`api_key` caching and FLOPs accounting
-- the `2e18` hard cap
-- a real training backend for cache misses
-- reservation persistence and startup recovery
-- worker-pool execution across visible CUDA devices
-- request-level OOM handling
-- graceful shutdown
+- validating assignment-style parameter ranges
+- caching repeated queries per `api_key`
+- tracking FLOPs usage up to the `2e18` cap
+- running a real local training backend on cache misses
 
 Main differences from the official handout API:
 
-- it trains on the local tokenized corpus, not the hidden official backend
+- it trains on your local tokenized corpus, not the hidden official backend
 - it accepts any non-empty API key by default
 - error responses still use FastAPI's `{"detail": {"message": ...}}` wrapper
 
-### Start and stop
+### Minimal usage
 
-Foreground:
+Start the server:
 
 ```sh
 ./scripts/start_api.sh
 ```
 
-Background:
+Run it in the background instead:
 
 ```sh
 ./scripts/start_api.sh --daemon
 ```
 
-Stop:
+Stop it:
 
 ```sh
 ./scripts/stop_api.sh
 ```
 
-You can still force a device:
+If you want to force the device:
 
 ```sh
 ./scripts/start_api.sh cpu
 ./scripts/start_api.sh cuda
 ```
 
-### Key environment variables
+### Minimal query flow
 
-- `CS336_API_DB_PATH`
-- `CS336_API_ACCEPT_ALL_KEYS`
-- `CS336_API_KEYS`
-- `CS336_TRAIN_DATA_META_PATH`
-- `CS336_VOCAB_SIZE`
-- `CS336_CONTEXT_LENGTH`
-- `CS336_DEVICE`
-- `CS336_DEVICES`
-- `CS336_MIXED_PRECISION`
-- `CS336_ACTIVATION_CHECKPOINTING`
-- `CS336_PRELOAD_DATASET`
-- `CS336_MAX_STEPS_CAP`
-- `CS336_LOG_DIR`
-
-### Runtime defaults
-
-- prefer `cuda` if available, otherwise `cpu`
-- prefer `bf16` on CUDA when supported, otherwise fall back to `fp16`
-- enable activation checkpointing automatically on CUDA runs
-- preload the tokenized dataset into RAM
-- use all visible CUDA devices when `CS336_DEVICE=cuda`
-- accept any non-empty API key unless allowlist mode is enabled
-
-Daemon mode writes:
-
-- `/root/autodl-tmp/api-logs/api-<port>.log`
-- `/root/autodl-tmp/api-logs/api-<port>.pid`
-
-### Debugging and inspection
-
-Reservation state for one key:
-
-```sh
-curl "http://127.0.0.1:8000/__admin__/reservations?api_key=test-key"
-```
-
-Recent reservations globally:
-
-```sh
-curl "http://127.0.0.1:8000/__admin__/reservations?limit=20"
-```
-
-Tail the fixed daemon log:
-
-```sh
-tail -f /root/autodl-tmp/api-logs/api-8000.log
-```
-
-The current GPU path has been smoke-tested on the largest handout-legal configuration:
-
-- `d_model=1024`
-- `num_layers=24`
-- `num_heads=16`
-- `batch_size=128`
-- `batch_size=256`
-
-### Common commands
-
-Quick smoke run:
-
-```sh
-CS336_MAX_STEPS_CAP=2 ./scripts/start_api.sh
-```
-
-Manual `/loss` request:
+Issue a training query:
 
 ```sh
 curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
 ```
 
-Reset the local API database:
-
-```sh
-rm -f /root/autodl-tmp/api/api.db
-```
-
-Run the full test suite:
-
-```sh
-uv run pytest -q
-```
-
-Run the API smoke suite:
-
-```sh
-bash scripts/run_api_smoke_suite.sh
-```
-
-Optional CUDA overrides:
-
-```sh
-CS336_MIXED_PRECISION=fp16 ./scripts/start_api.sh cuda
-CS336_MIXED_PRECISION=off ./scripts/start_api.sh cuda
-CS336_ACTIVATION_CHECKPOINTING=0 ./scripts/start_api.sh cuda
-CS336_PRELOAD_DATASET=0 ./scripts/start_api.sh cuda
-```
-
-The stop script first asks the local admin shutdown endpoint to drain running jobs gracefully. If
-the endpoint is unavailable, it falls back to `SIGTERM`.
-
-### Reset the local API database
-
-If you want to clear local run history and FLOPs accounting, remove the SQLite file and restart the
-service:
-
-```sh
-rm -f /root/autodl-tmp/api/api.db
-bash scripts/start_api.sh
-```
-
-### Example: smoke-test the API with curl
-
-Start the server in one terminal, then issue these requests from another terminal:
-
-```sh
-curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
-```
-
-Repeat the same query to confirm the cache behavior:
-
-```sh
-curl "http://127.0.0.1:8000/loss?d_model=64&num_layers=2&num_heads=2&batch_size=128&learning_rate=0.0003&train_flops=10000000000000&api_key=test-key"
-```
-
-Then verify FLOPs accounting and run history:
+Then inspect accounting and run history:
 
 ```sh
 curl "http://127.0.0.1:8000/total_flops_used?api_key=test-key"
 curl "http://127.0.0.1:8000/previous_runs?api_key=test-key"
 ```
 
-Expected behavior:
+Repeating the same `/loss` query with the same `api_key` should hit the cache instead of charging
+the FLOPs budget again.
 
-- the first `/loss` request should return a float `loss` and `total_flops_used=1e13`
-- the second identical `/loss` request should return the same `loss` without increasing `total_flops_used`
-- `/total_flops_used` should still report `1e13`
-- `/previous_runs` should contain exactly one matching run
+### Most useful environment variables
 
-### Batch smoke-suite script
+- `CS336_TRAIN_DATA_META_PATH`
+- `CS336_VOCAB_SIZE`
+- `CS336_DEVICE`
+- `CS336_DEVICES`
+- `CS336_MAX_STEPS_CAP`
+- `CS336_LOG_DIR`
 
-If you want to run a longer curl-based sweep and save every response to disk, use:
+Runtime defaults:
 
-```sh
-bash scripts/run_api_smoke_suite.sh
-```
+- prefer `cuda` if available, otherwise `cpu`
+- prefer `bf16` on CUDA when supported, otherwise fall back to `fp16`
+- enable activation checkpointing automatically on CUDA runs
+- preload the tokenized dataset into RAM
+- use all visible CUDA devices when `CS336_DEVICE=cuda`
 
-By default this writes a new timestamped directory under `.agents/logs/`, for example:
+If you start the server with `--daemon`, logs and the PID file are written under
+`/root/autodl-tmp/api-logs/`.
 
-```text
-.agents/logs/api_smoke_20260406-013000/
-```
-
-Each case writes:
-
-- one `*.url.txt` file with the exact request URL
-- one `*.status.txt` file with the HTTP status code
-- one `*.body.json` file with the raw response body
-- one `summary.tsv` file covering the whole suite
-
-The suite does **not** include the `2e18` hard-cap check by default, because a real backend would
-need to execute two `1e18` runs to reach the limit. If you are running against a smoke-test server
-with a very small `CS336_MAX_STEPS_CAP`, you can opt in:
-
-```sh
-INCLUDE_CAP_TESTS=1 bash scripts/run_api_smoke_suite.sh
-```
-
-### Recommended overnight workflow
-
-1. Start the service:
-
-```sh
-bash scripts/start_api.sh
-```
-
-2. Run the saved curl sweep in another terminal:
+For a longer curl-based regression sweep, use:
 
 ```sh
 bash scripts/run_api_smoke_suite.sh
 ```
 
-3. In the morning, inspect:
-
-```sh
-cat .agents/logs/api_smoke_*/summary.tsv
-cat .agents/logs/api_smoke_*/metadata.txt
-```
+The saved responses go under `.agents/logs/`, which makes it easier to compare repeated remote runs.
