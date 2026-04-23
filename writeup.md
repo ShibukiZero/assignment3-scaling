@@ -22,7 +22,13 @@ Figure 1 shows both the observed optimal points and the fitted scaling law. Usin
 **Deliverable:** A plot showing your scaling law for dataset size by compute budget, showing the data points used to fit the scaling law and extrapolating up to at least `1e24` FLOPs. Then, a one-sentence response with your predicted optimal dataset size.  
 
 **Answer:**  
-After selecting the minimum-loss run for each compute budget, I converted the optimal parameter count into an optimal dataset size using the Chinchilla accounting relation `C = 6ND`, i.e. `D_opt(C_i) = C_i / (6 N_opt(C_i))`. I then fit a second power law to the resulting `<C_i, D_opt(C_i)>` points in log-log space, which gave
+After selecting the minimum-loss run for each compute budget, I converted the optimal parameter count into an optimal dataset size using the Chinchilla accounting relation
+
+$$
+C = 6ND, \qquad D_{\mathrm{opt}}(C_i) = \frac{C_i}{6N_{\mathrm{opt}}(C_i)}.
+$$
+
+I then fit a second power law to the resulting `<C_i, D_opt(C_i)>` points in log-log space, which gave
 
 $$
 D_{\mathrm{opt}}(C) = 1.432570 \times 10^{-1} \cdot C^{0.531317}
@@ -64,7 +70,13 @@ This allocation matches the intended priorities of the project. Only a minority 
 
 ### 2. Search-Space Restriction
 
-Before spending most of the budget on IsoFLOPs sweeps, we first restricted the architecture search space with a fixed-`N` shape experiment. The purpose of this step was to decide how to map a target parameter count `N` to a concrete transformer shape, rather than to fit the final scaling law directly. We therefore chose a single anchor parameter scale near `N \approx 2.5 \times 10^7`, fixed `train_flops = 1e16` and `batch_size = 128`, and compared several candidate shapes that had similar parameter counts but very different width/depth ratios.
+Before spending most of the budget on IsoFLOPs sweeps, we first restricted the architecture search space with a fixed-`N` shape experiment. The purpose of this step was to decide how to map a target parameter count `N` to a concrete transformer shape, rather than to fit the final scaling law directly. We therefore chose a single anchor parameter scale near
+
+$$
+N \approx 2.5 \times 10^7,
+$$
+
+fixed `train_flops = 1e16` and `batch_size = 128`, and compared several candidate shapes that had similar parameter counts but very different width/depth ratios.
 
 The candidate shapes were:
 
@@ -74,7 +86,25 @@ The candidate shapes were:
 - `(d_model=768, num_layers=4, num_heads=12)`
 - `(d_model=1024, num_layers=2, num_heads=16)`
 
-Each candidate shape was evaluated with a local learning-rate sweep `\{1e-4, 2e-4, 4e-4, 8e-4, 1e-3\}`. This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at `d_model / num_heads = 64` for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio `d_model / num_layers`, with one curve per learning rate and a second summary panel showing the best loss achieved by each candidate shape after its local LR sweep. We use this second panel only as an observed profile over the tested shapes, highlighting the winner and the next-best candidates, rather than treating it as a continuous one-dimensional function that must be fit by a smooth curve.
+Each candidate shape was evaluated with a local learning-rate sweep
+
+$$
+\{10^{-4},\, 2 \times 10^{-4},\, 4 \times 10^{-4},\, 8 \times 10^{-4},\, 10^{-3}\}.
+$$
+
+This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at
+
+$$
+\frac{d_{\text{model}}}{\text{num\_heads}} = 64
+$$
+
+for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio
+
+$$
+\frac{d_{\text{model}}}{\text{num\_layers}},
+$$
+
+with one curve per learning rate and a second summary panel showing the best loss achieved by each candidate shape after its local LR sweep. We use this second panel only as an observed profile over the tested shapes, highlighting the winner and the next-best candidates, rather than treating it as a continuous one-dimensional function that must be fit by a smooth curve.
 
 The best observed configuration in this fixed-`N` comparison was `(640, 5, 10)`, with the next-best shapes being `(1024, 2, 16)` and `(768, 4, 12)`. We used this result to define the deterministic model family for the rest of Chapter 3. Concretely, we fixed two structural rules: `head_dim = 64`, so `num_heads = d_model / 64`, and the anchor width/depth ratio from the winning configuration, so `d_model / num_layers = 640 / 5 = 128`. Combined with the assignment's parameter-count approximation
 
@@ -224,15 +254,19 @@ Using the adopted quadratic-derived power law, our predicted compute-optimal par
 
 The corresponding continuous family estimate is:
 
-- $d_{\text{model}} \approx 1511.06$
-- $\text{num\_layers} \approx 11.81$
-- $\text{num\_heads} \approx 23.61$
+$$
+d_{\text{model}} \approx 1511.06, \qquad
+\text{num\_layers} \approx 11.81, \qquad
+\text{num\_heads} \approx 23.61.
+$$
 
 To produce a concrete architecture, we discretized this continuous prediction while preserving the same family rules used throughout the project:
 
-- $head\_dim = 64$
-- $\text{num\_heads} = d_{\text{model}} / 64$
-- $d_{\text{model}} / \text{num\_layers} \approx 128$
+$$
+head\_dim = 64, \qquad
+\text{num\_heads} = \frac{d_{\text{model}}}{64}, \qquad
+\frac{d_{\text{model}}}{\text{num\_layers}} \approx 128.
+$$
 
 The selected final architecture is:
 
