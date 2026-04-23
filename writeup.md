@@ -1,11 +1,11 @@
 ## Problem `chinchilla_isoflops`: 5 points
 
 ### (a)
-**Question:** Show your extrapolated compute-optimal model size, together with the `<C_i, $N_{\mathrm{opt}}(C_i)$>` points you obtained. What is your predicted optimal model size for a budget of `1e23` FLOPs? What about for `1e24` FLOPs?  
+**Question:** Show your extrapolated compute-optimal model size, together with the $\langle C_i, N_{\mathrm{opt}}(C_i) \rangle$ points you obtained. What is your predicted optimal model size for a budget of `1e23` FLOPs? What about for `1e24` FLOPs?  
 **Deliverable:** A plot showing your scaling law for model size by compute budget, showing the data points used to fit the scaling law and extrapolating up to at least `1e24` FLOPs. Then, a one-sentence response with your predicted optimal model size.  
 
 **Answer:**  
-I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by compute budget, and selected the minimum-loss run within each budget. Following the handout's suggested simplification, I treated the observed minimum directly as $N_{\mathrm{opt}}(C_i)$ rather than fitting a separate quadratic minimum inside each IsoFLOPs profile. I then fit a power law to the resulting `<C_i, $N_{\mathrm{opt}}(C_i)$>` points with ordinary least squares in log-log space, which gave
+I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by compute budget, and selected the minimum-loss run within each budget. Following the handout's suggested simplification, I treated the observed minimum directly as $N_{\mathrm{opt}}(C_i)$ rather than fitting a separate quadratic minimum inside each IsoFLOPs profile. I then fit a power law to the resulting $\langle C_i, N_{\mathrm{opt}}(C_i) \rangle$ points with ordinary least squares in log-log space, which gave
 
 $$
 N_{\mathrm{opt}}(C) = 1.163411 \times 10^{0} \cdot C^{0.468683}
@@ -18,7 +18,7 @@ with `R^2 = 0.9787`.
 Figure 1 shows both the observed optimal points and the fitted scaling law. Using this fit, the predicted compute-optimal model size is approximately `7.01e10` parameters at `1e23` FLOPs and `2.06e11` parameters at `1e24` FLOPs.
 
 ### (b)
-**Question:** Show your extrapolated compute-optimal dataset size, together with the `<C_i, $D_{\mathrm{opt}}(C_i)$>` data points from the training runs. What is your predicted optimal dataset size for budgets of `1e23` and `1e24` FLOPs?  
+**Question:** Show your extrapolated compute-optimal dataset size, together with the $\langle C_i, D_{\mathrm{opt}}(C_i) \rangle$ data points from the training runs. What is your predicted optimal dataset size for budgets of `1e23` and `1e24` FLOPs?  
 **Deliverable:** A plot showing your scaling law for dataset size by compute budget, showing the data points used to fit the scaling law and extrapolating up to at least `1e24` FLOPs. Then, a one-sentence response with your predicted optimal dataset size.  
 
 **Answer:**  
@@ -28,7 +28,7 @@ $$
 C = 6ND, \qquad D_{\mathrm{opt}}(C_i) = \frac{C_i}{6N_{\mathrm{opt}}(C_i)}.
 $$
 
-I then fit a second power law to the resulting `<C_i, $D_{\mathrm{opt}}(C_i)$>` points in log-log space, which gave
+I then fit a second power law to the resulting $\langle C_i, D_{\mathrm{opt}}(C_i) \rangle$ points in log-log space, which gave
 
 $$
 D_{\mathrm{opt}}(C) = 1.432570 \times 10^{-1} \cdot C^{0.531317}
