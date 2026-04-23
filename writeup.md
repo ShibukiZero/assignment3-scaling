@@ -11,7 +11,7 @@ $$
 N_{\mathrm{opt}}(C) = 1.163411 \times 10^{0} \cdot C^{0.468683}
 $$
 
-with `R^2 = 0.9787`.
+with $R^2 = 0.9787$.
 
 ![Model-size scaling law](artifacts/experiments/ch2/2_1_1_chinchilla_isoflops/model_size_scaling_law.png)
 
@@ -34,7 +34,7 @@ $$
 D_{\mathrm{opt}}(C) = 1.432570 \times 10^{-1} \cdot C^{0.531317}
 $$
 
-with `R^2 = 0.9834`.
+with $R^2 = 0.9834$.
 
 ![Dataset-size scaling law](artifacts/experiments/ch2/2_1_1_chinchilla_isoflops/dataset_size_scaling_law.png)
 
@@ -210,7 +210,7 @@ $$
 N_{\mathrm{opt}}(C) = 3.624676 \times 10^{-5} \cdot C^{0.681608}
 $$
 
-with `R^2 = 0.9816`. Extrapolated to `1e19` FLOPs, this law predicts an optimal model size of approximately `3.23e8` parameters.
+with $R^2 = 0.9816$. Extrapolated to `1e19` FLOPs, this law predicts an optimal model size of approximately `3.23e8` parameters.
 
 ![Quadratic-derived scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/quadratic_nopt_scaling.png)
 
@@ -222,7 +222,7 @@ $$
 N_{\mathrm{opt}}(C) = 5.971429 \times 10^{-15} \cdot C^{1.271250}
 $$
 
-with `R^2 = 0.9998`. Extrapolating this fit to the target budget gives a predicted optimal model size of approximately `8.51e9` parameters at `1e19` FLOPs.
+with $R^2 = 0.9998$. Extrapolating this fit to the target budget gives a predicted optimal model size of approximately `8.51e9` parameters at `1e19` FLOPs.
 
 ![Observed-minimum scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/observed_nopt_scaling.png)
 
@@ -240,7 +240,7 @@ $$
 N_{\mathrm{opt}}(C) = 3.624676 \times 10^{-5} \cdot C^{0.681608}
 $$
 
-achieves `R^2 = 0.9816` on the selected quadratic-derived optima. This indicates that, once the IsoFLOPs curves move out of the left-censored regime, the estimated optimal model size is well approximated by a power law in log-log space.
+achieves $R^2 = 0.9816$ on the selected quadratic-derived optima. This indicates that, once the IsoFLOPs curves move out of the left-censored regime, the estimated optimal model size is well approximated by a power law in log-log space.
 
 At the same time, the main uncertainty in our final prediction does not come from regression noise alone. Instead, it comes from three structural factors. First, the lowest-budget curves are still boundary-censored by the smallest legal model in our restricted family, so they are informative about the low-budget regime but should not be interpreted as clean interior optima. Second, the search was intentionally restricted to a 7-point exact architecture family, which makes the extracted $N_{\mathrm{opt}}(C)$ sequence discretized and may shift the apparent optimum away from the true optimum that would be found in a denser architecture space. Third, the final prediction at `1e19` FLOPs is a genuine extrapolation beyond the largest queried budget of `1e17`, so even a strong in-range fit cannot eliminate large-scale extrapolation risk.
 
@@ -287,7 +287,7 @@ $$
 L(C) = 14.923424 - 0.644605 \cdot \log_{10}(C)
 $$
 
-with `R^2 = 0.9560`. Extrapolated to `1e19` FLOPs, this fit predicts a final training loss of approximately `2.676`.
+with $R^2 = 0.9560$. Extrapolated to `1e19` FLOPs, this fit predicts a final training loss of approximately `2.676`.
 
 ### 8. Reproducibility and Limitations
 
