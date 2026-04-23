@@ -7,7 +7,9 @@
 **Answer:**  
 I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by compute budget, and selected the minimum-loss run within each budget. Following the handout's suggested simplification, I treated the observed minimum directly as `N_opt(C_i)` rather than fitting a separate quadratic minimum inside each IsoFLOPs profile. I then fit a power law to the resulting `<C_i, N_opt(C_i)>` points with ordinary least squares in log-log space, which gave
 
-`N_opt(C) = 1.163411e+00 * C^0.468683`
+$$
+N_{\mathrm{opt}}(C) = 1.163411 \times 10^{0} \cdot C^{0.468683}
+$$
 
 with `R^2 = 0.9787`.
 
@@ -22,7 +24,9 @@ Figure 1 shows both the observed optimal points and the fitted scaling law. Usin
 **Answer:**  
 After selecting the minimum-loss run for each compute budget, I converted the optimal parameter count into an optimal dataset size using the Chinchilla accounting relation `C = 6ND`, i.e. `D_opt(C_i) = C_i / (6 N_opt(C_i))`. I then fit a second power law to the resulting `<C_i, D_opt(C_i)>` points in log-log space, which gave
 
-`D_opt(C) = 1.432570e-01 * C^0.531317`
+$$
+D_{\mathrm{opt}}(C) = 1.432570 \times 10^{-1} \cdot C^{0.531317}
+$$
 
 with `R^2 = 0.9834`.
 
@@ -30,7 +34,7 @@ with `R^2 = 0.9834`.
 
 Figure 2 shows the observed optimal dataset sizes together with the fitted law. Using this fit, the predicted compute-optimal dataset size is approximately `2.38e11` tokens at `1e23` FLOPs and `8.09e11` tokens at `1e24` FLOPs.
 
-As a sanity check, the fitted exponents satisfy `0.468683 + 0.531317 ≈ 1`, which is consistent with `D = C / (6N)` and shows that the two fitted laws are mutually consistent. The selected optimal points are not perfectly monotonic because they come from taking the best observed run on a discrete synthetic grid, but the overall log-log trend remains smooth and is well approximated by a power law.
+As a sanity check, the fitted exponents satisfy $0.468683 + 0.531317 \approx 1$, which is consistent with $D = C / (6N)$ and shows that the two fitted laws are mutually consistent. The selected optimal points are not perfectly monotonic because they come from taking the best observed run on a discrete synthetic grid, but the overall log-log trend remains smooth and is well approximated by a power law.
 
 ---
 
@@ -74,7 +78,9 @@ Each candidate shape was evaluated with a local learning-rate sweep `\{1e-4, 2e-
 
 The best observed configuration in this fixed-`N` comparison was `(640, 5, 10)`, with the next-best shapes being `(1024, 2, 16)` and `(768, 4, 12)`. We used this result to define the deterministic model family for the rest of Chapter 3. Concretely, we fixed two structural rules: `head_dim = 64`, so `num_heads = d_model / 64`, and the anchor width/depth ratio from the winning configuration, so `d_model / num_layers = 640 / 5 = 128`. Combined with the assignment's parameter-count approximation
 
-`N = 12 * num_layers * d_model^2,`
+$$
+N = 12 \cdot \text{num\_layers} \cdot d_{\text{model}}^2,
+$$
 
 this gave a one-parameter architecture family that could be indexed by target parameter count.
 
@@ -122,7 +128,9 @@ Combining this refinement with the earlier joint sweep gave the exact-family loo
 
 For interpolation outside these discrete family points, we also recorded a capped large-`N` rule:
 
-`lr(N) = min(1e-3, 9e-4 * (N / 42467328)^(-0.4716889721)).`
+$$
+\mathrm{lr}(N) = \min\!\left(10^{-3},\; 9 \times 10^{-4} \cdot \left(\frac{N}{42467328}\right)^{-0.4716889721}\right).
+$$
 
 ![Final learning-rate rule](artifacts/experiments/ch3/3_2_2_large_n_lr_refine/lr_rule.png)
 
@@ -168,7 +176,9 @@ We considered two different ways of converting the IsoFLOPs experiments into a s
 
 The primary method uses the quadratic-profile optima extracted from the per-budget fits. For this method, all budgets and all plotted `N` points are still shown in the profile analysis, but the power-law fit itself drops the two smallest compute budgets before regression. The resulting quadratic-derived power law is:
 
-`N_opt(C) = 3.624676e-05 * C^0.681608`
+$$
+N_{\mathrm{opt}}(C) = 3.624676 \times 10^{-5} \cdot C^{0.681608}
+$$
 
 with `R^2 = 0.9816`. Extrapolated to `1e19` FLOPs, this law predicts an optimal model size of approximately `3.23e8` parameters.
 
@@ -178,7 +188,9 @@ Figure 8 shows the quadratic-derived `N_opt(C)` progression together with its fi
 
 For reference, we also fit a law using only the best observed point at each budget. Because the low-budget budgets are boundary-censored, we do not treat them as clean interior optima in that fit. Instead, we use only the non-boundary observed minima, i.e. the points at `3e16`, `6e16`, and `1e17`, and fit a power law in log-log space:
 
-`N_opt(C) = 5.971429e-15 * C^1.271250`
+$$
+N_{\mathrm{opt}}(C) = 5.971429 \times 10^{-15} \cdot C^{1.271250}
+$$
 
 with `R^2 = 0.9998`. Extrapolating this fit to the target budget gives a predicted optimal model size of approximately `8.51e9` parameters at `1e19` FLOPs.
 
@@ -194,7 +206,9 @@ Figure 10 overlays the observed-minimum points, the quadratic-derived optima, an
 
 The adopted quadratic-derived scaling law fits the medium- and high-budget regime reasonably well. In particular, the fitted law
 
-`N_opt(C) = 3.624676e-05 * C^0.681608`
+$$
+N_{\mathrm{opt}}(C) = 3.624676 \times 10^{-5} \cdot C^{0.681608}
+$$
 
 achieves `R^2 = 0.9816` on the selected quadratic-derived optima. This indicates that, once the IsoFLOPs curves move out of the left-censored regime, the estimated optimal model size is well approximated by a power law in log-log space.
 
@@ -210,15 +224,15 @@ Using the adopted quadratic-derived power law, our predicted compute-optimal par
 
 The corresponding continuous family estimate is:
 
-- `d_model ≈ 1511.06`
-- `num_layers ≈ 11.81`
-- `num_heads ≈ 23.61`
+- $d_{\text{model}} \approx 1511.06$
+- $\text{num\_layers} \approx 11.81$
+- $\text{num\_heads} \approx 23.61$
 
 To produce a concrete architecture, we discretized this continuous prediction while preserving the same family rules used throughout the project:
 
-- `head_dim = 64`
-- `num_heads = d_model / 64`
-- `d_model / num_layers ≈ 128`
+- $head\_dim = 64$
+- $\text{num\_heads} = d_{\text{model}} / 64$
+- $d_{\text{model}} / \text{num\_layers} \approx 128$
 
 The selected final architecture is:
 
@@ -235,7 +249,9 @@ The final training hyperparameters are:
 
 For the final training loss, we use the observed-best-loss rule introduced in Section 3 and adopt the log-linear fit:
 
-`L(C) = 14.923424 - 0.644605 * log10(C)`
+$$
+L(C) = 14.923424 - 0.644605 \cdot \log_{10}(C)
+$$
 
 with `R^2 = 0.9560`. Extrapolated to `1e19` FLOPs, this fit predicts a final training loss of approximately `2.676`.
 
