@@ -1,11 +1,11 @@
 ## Problem `chinchilla_isoflops`: 5 points
 
 ### (a)
-**Question:** Show your extrapolated compute-optimal model size, together with the `<C_i, N_opt(C_i)>` points you obtained. What is your predicted optimal model size for a budget of `1e23` FLOPs? What about for `1e24` FLOPs?  
+**Question:** Show your extrapolated compute-optimal model size, together with the `<C_i, $N_{\mathrm{opt}}(C_i)$>` points you obtained. What is your predicted optimal model size for a budget of `1e23` FLOPs? What about for `1e24` FLOPs?  
 **Deliverable:** A plot showing your scaling law for model size by compute budget, showing the data points used to fit the scaling law and extrapolating up to at least `1e24` FLOPs. Then, a one-sentence response with your predicted optimal model size.  
 
 **Answer:**  
-I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by compute budget, and selected the minimum-loss run within each budget. Following the handout's suggested simplification, I treated the observed minimum directly as `N_opt(C_i)` rather than fitting a separate quadratic minimum inside each IsoFLOPs profile. I then fit a power law to the resulting `<C_i, N_opt(C_i)>` points with ordinary least squares in log-log space, which gave
+I loaded the synthetic runs in `data/isoflops_curves.json`, grouped them by compute budget, and selected the minimum-loss run within each budget. Following the handout's suggested simplification, I treated the observed minimum directly as $N_{\mathrm{opt}}(C_i)$ rather than fitting a separate quadratic minimum inside each IsoFLOPs profile. I then fit a power law to the resulting `<C_i, $N_{\mathrm{opt}}(C_i)$>` points with ordinary least squares in log-log space, which gave
 
 $$
 N_{\mathrm{opt}}(C) = 1.163411 \times 10^{0} \cdot C^{0.468683}
@@ -18,7 +18,7 @@ with `R^2 = 0.9787`.
 Figure 1 shows both the observed optimal points and the fitted scaling law. Using this fit, the predicted compute-optimal model size is approximately `7.01e10` parameters at `1e23` FLOPs and `2.06e11` parameters at `1e24` FLOPs.
 
 ### (b)
-**Question:** Show your extrapolated compute-optimal dataset size, together with the `<C_i, D_opt(C_i)>` data points from the training runs. What is your predicted optimal dataset size for budgets of `1e23` and `1e24` FLOPs?  
+**Question:** Show your extrapolated compute-optimal dataset size, together with the `<C_i, $D_{\mathrm{opt}}(C_i)$>` data points from the training runs. What is your predicted optimal dataset size for budgets of `1e23` and `1e24` FLOPs?  
 **Deliverable:** A plot showing your scaling law for dataset size by compute budget, showing the data points used to fit the scaling law and extrapolating up to at least `1e24` FLOPs. Then, a one-sentence response with your predicted optimal dataset size.  
 
 **Answer:**  
@@ -28,7 +28,7 @@ $$
 C = 6ND, \qquad D_{\mathrm{opt}}(C_i) = \frac{C_i}{6N_{\mathrm{opt}}(C_i)}.
 $$
 
-I then fit a second power law to the resulting `<C_i, D_opt(C_i)>` points in log-log space, which gave
+I then fit a second power law to the resulting `<C_i, $D_{\mathrm{opt}}(C_i)$>` points in log-log space, which gave
 
 $$
 D_{\mathrm{opt}}(C) = 1.432570 \times 10^{-1} \cdot C^{0.531317}
@@ -54,7 +54,7 @@ As a sanity check, the fitted exponents satisfy $0.468683 + 0.531317 \approx 1$,
 
 Our goal was to predict the compute-optimal model size, training hyperparameters, and final training loss at a target budget of `1e19` FLOPs, while keeping all exploratory API queries within the assignment's `2e18`-FLOP budget. Instead of treating the API as a black-box optimization problem over the full configuration space, we explicitly split the budget into three stages, each answering a different question needed for the final scaling-law fit.
 
-In the first stage, we allocated a small fraction of the budget to fixed-`N` shape search. The purpose of this stage was not to fit the final scaling law, but to determine a deterministic model family by comparing several architecture shapes with roughly matched parameter counts and identifying a stable width/depth ratio and head-dimension rule. In the second stage, after fixing this shape family, we used another controlled portion of the budget to calibrate hyperparameters under IsoFLOPs-style conditions. In particular, we studied how `batch_size` and `learning_rate` should be chosen once the architecture family had been fixed, including a separate refinement pass for the largest models. Only in the third stage did we spend the bulk of the budget on the main IsoFLOPs experiments, whose purpose was to estimate `N_opt(C)` directly by comparing model sizes across multiple compute budgets.
+In the first stage, we allocated a small fraction of the budget to fixed-`N` shape search. The purpose of this stage was not to fit the final scaling law, but to determine a deterministic model family by comparing several architecture shapes with roughly matched parameter counts and identifying a stable width/depth ratio and head-dimension rule. In the second stage, after fixing this shape family, we used another controlled portion of the budget to calibrate hyperparameters under IsoFLOPs-style conditions. In particular, we studied how `batch_size` and `learning_rate` should be chosen once the architecture family had been fixed, including a separate refinement pass for the largest models. Only in the third stage did we spend the bulk of the budget on the main IsoFLOPs experiments, whose purpose was to estimate $N_{\mathrm{opt}}(C)$ directly by comparing model sizes across multiple compute budgets.
 
 This staged allocation was deliberate. The first two stages reduced variance from architecture and optimizer choices before the main scaling-law fit, so that the final IsoFLOPs sweeps could focus on the central question of interest: how the compute-optimal model size grows with compute budget. The final report therefore does not mirror the chronological order of every API call, but it does preserve this experimental logic: first restrict the search space, then calibrate hyperparameters, and finally fit the scaling law on the resulting family.
 
@@ -64,7 +64,7 @@ Table 1 summarizes the actual budget allocation implied by the experiment logs. 
 | --- | --- | ---: | ---: | ---: |
 | Stage 1 | Fixed-`N` shape-family search | `2.5e17` | `2.5e17` | `12.8%` |
 | Stage 2 | Hyperparameter calibration (`batch_size`, `learning_rate`) | `7.6e17` | `5.1e17` | `26.1%` |
-| Stage 3 | Main IsoFLOPs experiments for fitting `N_opt(C)` | `1.953e18` | `1.193e18` | `61.1%` |
+| Stage 3 | Main IsoFLOPs experiments for fitting $N_{\mathrm{opt}}(C)$ | `1.953e18` | `1.193e18` | `61.1%` |
 
 This allocation matches the intended priorities of the project. Only a minority of the budget was spent on architecture and optimizer calibration, while the majority was reserved for the final IsoFLOPs sweeps that directly support the scaling-law fit.
 
@@ -132,7 +132,7 @@ Figure 3 summarizes this fixed-`N` shape search. The left panel shows the local 
 
 ### 3. Hyperparameter Calibration
 
-After fixing the architecture family, the next question was how to choose `batch_size` and `learning_rate` for the main IsoFLOPs sweeps. We treated this as a calibration stage rather than folding it into the final scaling-law fit. The point of this stage was to reduce optimizer-related variance before spending most of the remaining budget on `N_opt(C)`.
+After fixing the architecture family, the next question was how to choose `batch_size` and `learning_rate` for the main IsoFLOPs sweeps. We treated this as a calibration stage rather than folding it into the final scaling-law fit. The point of this stage was to reduce optimizer-related variance before spending most of the remaining budget on $N_{\mathrm{opt}}(C)$.
 
 We first ran a joint `(batch_size, learning_rate)` sweep over the 7 exact-family shapes at a fixed `train_flops = 1e16`. The tested batch sizes were `128` and `256`, and the tested learning rates were `6e-4`, `8e-4`, and `1e-3`. Figure 4 shows the resulting calibration plot. The most important conclusion from this experiment is that `batch_size = 128` consistently outperformed `256` across the entire exact-family range. This gave us a simple and stable rule for the rest of Chapter 3: fix `batch_size = 128` and do not continue to spend budget on batch-size comparisons during the main IsoFLOPs stage.
 
@@ -202,7 +202,7 @@ Figure 7 shows the resulting per-budget profiles as small multiples, which makes
 
 ### 5. Scaling-Law Fit
 
-We considered two different ways of converting the IsoFLOPs experiments into a scaling law for `N_opt(C)`. Our final choice is the quadratic-derived fit, while the observed-minimum fit is retained as a comparison baseline.
+We considered two different ways of converting the IsoFLOPs experiments into a scaling law for $N_{\mathrm{opt}}(C)$. Our final choice is the quadratic-derived fit, while the observed-minimum fit is retained as a comparison baseline.
 
 The primary method uses the quadratic-profile optima extracted from the per-budget fits. For this method, all budgets and all plotted `N` points are still shown in the profile analysis, but the power-law fit itself drops the two smallest compute budgets before regression. The resulting quadratic-derived power law is:
 
@@ -214,7 +214,7 @@ with `R^2 = 0.9816`. Extrapolated to `1e19` FLOPs, this law predicts an optimal 
 
 ![Quadratic-derived scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/quadratic_nopt_scaling.png)
 
-Figure 8 shows the quadratic-derived `N_opt(C)` progression together with its fitted power law, extended to the target budget `1e19`. In this adopted analysis, the per-budget quadratic fits are computed on the full plotted profiles, while the final log-log regression omits only the two smallest compute budgets. Relative to the discrete observed-minimum fit, this method produces a flatter scaling trajectory and a more conservative large-scale prediction. We prefer it because it better matches the way Chinchilla-style IsoFLOPs profiles are intended to be interpreted: as local valleys that should be smoothed before extracting `N_opt(C)`.
+Figure 8 shows the quadratic-derived $N_{\mathrm{opt}}(C)$ progression together with its fitted power law, extended to the target budget `1e19`. In this adopted analysis, the per-budget quadratic fits are computed on the full plotted profiles, while the final log-log regression omits only the two smallest compute budgets. Relative to the discrete observed-minimum fit, this method produces a flatter scaling trajectory and a more conservative large-scale prediction. We prefer it because it better matches the way Chinchilla-style IsoFLOPs profiles are intended to be interpreted: as local valleys that should be smoothed before extracting $N_{\mathrm{opt}}(C)$.
 
 For reference, we also fit a law using only the best observed point at each budget. Because the low-budget budgets are boundary-censored, we do not treat them as clean interior optima in that fit. Instead, we use only the non-boundary observed minima, i.e. the points at `3e16`, `6e16`, and `1e17`, and fit a power law in log-log space:
 
@@ -226,11 +226,11 @@ with `R^2 = 0.9998`. Extrapolating this fit to the target budget gives a predict
 
 ![Observed-minimum scaling law](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/observed_nopt_scaling.png)
 
-Figure 9 shows the observed-minimum `N_opt(C)` progression together with the fitted power law and the extrapolated prediction at `1e19` FLOPs. This fit is the most literal summary of the queried runs, but it relies only on the three interior points `3e16`, `6e16`, and `1e17`, because the lower-budget points are still censored by the family lower bound.
+Figure 9 shows the observed-minimum $N_{\mathrm{opt}}(C)$ progression together with the fitted power law and the extrapolated prediction at `1e19` FLOPs. This fit is the most literal summary of the queried runs, but it relies only on the three interior points `3e16`, `6e16`, and `1e17`, because the lower-budget points are still censored by the family lower bound.
 
 ![Observed vs quadratic-derived scaling laws](artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/nopt_fit_comparison.png)
 
-Figure 10 overlays the observed-minimum points, the quadratic-derived optima, and their two fitted scaling laws on the same axes. This comparison makes the tradeoff explicit: the observed fit tracks the literal queried minima more aggressively, while the quadratic-derived fit smooths the medium-budget curves and yields a flatter `N_opt(C)` trajectory. We use the quadratic-derived fit as the final scaling law and keep the observed-minimum fit only as a robustness baseline.
+Figure 10 overlays the observed-minimum points, the quadratic-derived optima, and their two fitted scaling laws on the same axes. This comparison makes the tradeoff explicit: the observed fit tracks the literal queried minima more aggressively, while the quadratic-derived fit smooths the medium-budget curves and yields a flatter $N_{\mathrm{opt}}(C)$ trajectory. We use the quadratic-derived fit as the final scaling law and keep the observed-minimum fit only as a robustness baseline.
 
 ### 6. Fit Quality and Uncertainty
 
@@ -242,13 +242,13 @@ $$
 
 achieves `R^2 = 0.9816` on the selected quadratic-derived optima. This indicates that, once the IsoFLOPs curves move out of the left-censored regime, the estimated optimal model size is well approximated by a power law in log-log space.
 
-At the same time, the main uncertainty in our final prediction does not come from regression noise alone. Instead, it comes from three structural factors. First, the lowest-budget curves are still boundary-censored by the smallest legal model in our restricted family, so they are informative about the low-budget regime but should not be interpreted as clean interior optima. Second, the search was intentionally restricted to a 7-point exact architecture family, which makes the extracted `N_opt(C)` sequence discretized and may shift the apparent optimum away from the true optimum that would be found in a denser architecture space. Third, the final prediction at `1e19` FLOPs is a genuine extrapolation beyond the largest queried budget of `1e17`, so even a strong in-range fit cannot eliminate large-scale extrapolation risk.
+At the same time, the main uncertainty in our final prediction does not come from regression noise alone. Instead, it comes from three structural factors. First, the lowest-budget curves are still boundary-censored by the smallest legal model in our restricted family, so they are informative about the low-budget regime but should not be interpreted as clean interior optima. Second, the search was intentionally restricted to a 7-point exact architecture family, which makes the extracted $N_{\mathrm{opt}}(C)$ sequence discretized and may shift the apparent optimum away from the true optimum that would be found in a denser architecture space. Third, the final prediction at `1e19` FLOPs is a genuine extrapolation beyond the largest queried budget of `1e17`, so even a strong in-range fit cannot eliminate large-scale extrapolation risk.
 
 Among the queried budgets, the strongest direct support comes from `3e16`, `6e16`, and especially the 5-point `1e17` local profile, where the optimum is bracketed rather than inferred from a boundary point. For this reason, we treat the fitted law as a principled estimate rather than a precise oracle. We trust the qualitative trend—that the compute-optimal model size increases smoothly with compute and that the quadratic-derived fit provides a more stable summary than the raw observed minima—but we still expect nontrivial uncertainty in the exact parameter count predicted at `1e19` FLOPs.
 
 ### 7. Final `1e19` Prediction
 
-We generated the final prediction with a dedicated post-processing script that combines the adopted `N_opt(C)` law, the unconstrained deterministic architecture family, the adopted `lr(N)` rule, the fixed `batch_size`, and the adopted loss law. The resulting JSON artifact is archived at `artifacts/experiments/ch3/3_4_3_final_prediction/final_prediction.json`.
+We generated the final prediction with a dedicated post-processing script that combines the adopted $N_{\mathrm{opt}}(C)$ law, the unconstrained deterministic architecture family, the adopted `lr(N)` rule, the fixed `batch_size`, and the adopted loss law. The resulting JSON artifact is archived at `artifacts/experiments/ch3/3_4_3_final_prediction/final_prediction.json`.
 
 Using the adopted quadratic-derived power law, our predicted compute-optimal parameter count at `1e19` FLOPs is approximately `3.23e8` non-embedding parameters.
 
@@ -291,6 +291,6 @@ with `R^2 = 0.9560`. Extrapolated to `1e19` FLOPs, this fit predicts a final tra
 
 ### 8. Reproducibility and Limitations
 
-The full workflow is reproducible from the archived experiment directories under `artifacts/experiments/ch3/`. In particular, the archived logs record the fixed shape family, the hyperparameter calibration sweeps, the IsoFLOPs experiment grids, the adopted scaling-law figures, the loss-fit comparison, and the final prediction JSON used for the final report. Reproducing the methodology therefore amounts to replaying the same three-stage process: first restrict the architecture family with the fixed-`N` shape search, then calibrate `batch_size`, `learning_rate`, and the loss bookkeeping rule, and finally run the IsoFLOPs sweeps and post-processing scripts that extract `N_opt(C)`, fit the adopted power law, and generate the final `1e19` prediction.
+The full workflow is reproducible from the archived experiment directories under `artifacts/experiments/ch3/`. In particular, the archived logs record the fixed shape family, the hyperparameter calibration sweeps, the IsoFLOPs experiment grids, the adopted scaling-law figures, the loss-fit comparison, and the final prediction JSON used for the final report. Reproducing the methodology therefore amounts to replaying the same three-stage process: first restrict the architecture family with the fixed-`N` shape search, then calibrate `batch_size`, `learning_rate`, and the loss bookkeeping rule, and finally run the IsoFLOPs sweeps and post-processing scripts that extract $N_{\mathrm{opt}}(C)$, fit the adopted power law, and generate the final `1e19` prediction.
 
-The main limitation of this approach is that the final scaling law is built on a deliberately restricted 7-point exact architecture family rather than a dense architecture space. This makes the extracted `N_opt(C)` sequence cleaner and more interpretable, but it also discretizes the optimum and can shift the apparent best model size away from the true continuous optimum. In addition, the low-budget regime remains boundary-censored, the final loss law is fit on only the three highest budgets, and the final `1e19` prediction is still a substantial extrapolation beyond the largest queried budget of `1e17`. The resulting prediction is therefore best interpreted as a principled, budget-constrained estimate rather than a high-confidence exact optimum.
+The main limitation of this approach is that the final scaling law is built on a deliberately restricted 7-point exact architecture family rather than a dense architecture space. This makes the extracted $N_{\mathrm{opt}}(C)$ sequence cleaner and more interpretable, but it also discretizes the optimum and can shift the apparent best model size away from the true continuous optimum. In addition, the low-budget regime remains boundary-censored, the final loss law is fit on only the three highest budgets, and the final `1e19` prediction is still a substantial extrapolation beyond the largest queried budget of `1e17`. The resulting prediction is therefore best interpreted as a principled, budget-constrained estimate rather than a high-confidence exact optimum.
