@@ -95,13 +95,13 @@ $$
 This experiment was designed as a fixed-parameter-scale shape search, not as a full IsoFLOPs profile. In particular, the head dimension was already held constant at
 
 $$
-\frac{d_{\text{model}}}{\text{num\_heads}} = 64
+\frac{d_{\mathrm{model}}}{n_{\mathrm{heads}}} = 64
 $$
 
 for all five candidates, so the main architectural degree of freedom was the width/depth tradeoff. A natural summary plot for this experiment is therefore loss versus the width/depth ratio
 
 $$
-\frac{d_{\text{model}}}{\text{num\_layers}},
+\frac{d_{\mathrm{model}}}{n_{\mathrm{layers}}},
 $$
 
 with one curve per learning rate and a second summary panel showing the best loss achieved by each candidate shape after its local LR sweep. We use this second panel only as an observed profile over the tested shapes, highlighting the winner and the next-best candidates, rather than treating it as a continuous one-dimensional function that must be fit by a smooth curve.
@@ -109,7 +109,7 @@ with one curve per learning rate and a second summary panel showing the best los
 The best observed configuration in this fixed-`N` comparison was `(640, 5, 10)`, with the next-best shapes being `(1024, 2, 16)` and `(768, 4, 12)`. We used this result to define the deterministic model family for the rest of Chapter 3. Concretely, we fixed two structural rules: `head_dim = 64`, so `num_heads = d_model / 64`, and the anchor width/depth ratio from the winning configuration, so `d_model / num_layers = 640 / 5 = 128`. Combined with the assignment's parameter-count approximation
 
 $$
-N = 12 \cdot \text{num\_layers} \cdot d_{\text{model}}^2,
+N = 12 \cdot n_{\mathrm{layers}} \cdot d_{\mathrm{model}}^2,
 $$
 
 this gave a one-parameter architecture family that could be indexed by target parameter count.
@@ -255,17 +255,17 @@ Using the adopted quadratic-derived power law, our predicted compute-optimal par
 The corresponding continuous family estimate is:
 
 $$
-d_{\text{model}} \approx 1511.06, \qquad
-\text{num\_layers} \approx 11.81, \qquad
-\text{num\_heads} \approx 23.61.
+d_{\mathrm{model}} \approx 1511.06, \qquad
+n_{\mathrm{layers}} \approx 11.81, \qquad
+n_{\mathrm{heads}} \approx 23.61.
 $$
 
 To produce a concrete architecture, we discretized this continuous prediction while preserving the same family rules used throughout the project:
 
 $$
-head\_dim = 64, \qquad
-\text{num\_heads} = \frac{d_{\text{model}}}{64}, \qquad
-\frac{d_{\text{model}}}{\text{num\_layers}} \approx 128.
+d_{\mathrm{head}} = 64, \qquad
+n_{\mathrm{heads}} = \frac{d_{\mathrm{model}}}{64}, \qquad
+\frac{d_{\mathrm{model}}}{n_{\mathrm{layers}}} \approx 128.
 $$
 
 The selected final architecture is:
