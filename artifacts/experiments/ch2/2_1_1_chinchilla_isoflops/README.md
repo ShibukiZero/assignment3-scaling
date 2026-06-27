@@ -11,7 +11,7 @@ Files:
 - `fit_summary.json`: fitted coefficients, `R^2`, and predictions for `1e23` and `1e24` FLOPs
 
 These files were promoted from the exploratory run under
-`.agents/logs/chinchilla_isoflops_run1/` after review.
+`runs/chinchilla_isoflops_run1/` after review.
 
 Naming note:
 

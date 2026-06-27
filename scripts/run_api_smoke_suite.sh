@@ -4,7 +4,7 @@ set -euo pipefail
 
 BASE_URL="${1:-http://127.0.0.1:8000}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-OUTDIR="${2:-.agents/logs/api_smoke_${STAMP}}"
+OUTDIR="${2:-runs/api_smoke_${STAMP}}"
 INCLUDE_CAP_TESTS="${INCLUDE_CAP_TESTS:-0}"
 
 mkdir -p "${OUTDIR}"

@@ -29,7 +29,7 @@ uv run python artifacts/experiments/ch3/explore_isoflops_quadratic_profiles.py \
 ```
 
 This command is the artifact-version replacement for the older exploratory output
-under `.agents/logs/ch3_isoflops_quadratic_explore/`. The archived figure in
+under `runs/ch3_isoflops_quadratic_explore/`. The archived figure in
 `artifacts/` should keep all plotted budgets and all plotted `N` points visible
 when fitting each per-budget quadratic profile.
 

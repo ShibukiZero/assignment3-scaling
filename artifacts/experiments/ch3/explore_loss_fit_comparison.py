@@ -338,7 +338,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".agents/logs/ch3_loss_fit_explore"),
+        default=Path("runs/ch3_loss_fit_explore"),
         help="Directory for exploratory plot and JSON outputs.",
     )
     parser.add_argument(

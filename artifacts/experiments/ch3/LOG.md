@@ -57,7 +57,7 @@ This file is the working log for Chapter 3 experiments only.
   - we want each candidate shape to get a fair LR sweep before we compare losses
   - we do not want to spend early budget on scanning both batch sizes
   - the backend already has a multi-worker queue, so sequential submission would underuse multi-GPU capacity
-  - we want experiment results to land directly in the matching artifact directory instead of `.agents/logs`
+  - we want experiment results to land directly in the matching artifact directory instead of `runs`
 - Output directory:
   - `artifacts/experiments/ch3/3_1_1_shape_lr_sweep/`
 - Current status:
@@ -325,7 +325,7 @@ This file is the working log for Chapter 3 experiments only.
 - Current status:
   - completed
   - commands are documented in `artifacts/experiments/ch3/3_4_1_isoflops_fit_analysis/README.md`
-  - the archived per-budget quadratic profile figure should replace the older `.agents/logs/ch3_isoflops_quadratic_explore/` version
+  - the archived per-budget quadratic profile figure should replace the older `runs/ch3_isoflops_quadratic_explore/` version
   - final reporting decision:
     - adopt the quadratic-derived power law as the primary `N_opt(C)` law
     - keep the observed-minimum fit as a robustness baseline

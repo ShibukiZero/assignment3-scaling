@@ -10,7 +10,7 @@ Outputs:
 - `isoflops_quadratic_profiles.png`
 - `isoflops_quadratic_summary.json`
 
-The default output directory is under `.agents/logs/`, not `artifacts/`, so the
+The default output directory is under `runs/`, not `artifacts/`, so the
 results can be reviewed first before we decide whether to promote them into the
 final report.
 
@@ -273,7 +273,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".agents/logs/ch3_isoflops_quadratic_explore"),
+        default=Path("runs/ch3_isoflops_quadratic_explore"),
         help="Directory for exploratory plot and JSON outputs.",
     )
     parser.add_argument(

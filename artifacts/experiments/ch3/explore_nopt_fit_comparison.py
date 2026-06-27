@@ -12,7 +12,7 @@ This is an exploratory analysis script. It:
      smallest budgets from the actual power-law regression
 5. Writes separate scaling-law figures plus a JSON summary containing the fitted formulas.
 
-The default output directory lives under `.agents/logs/` so we can inspect the
+The default output directory lives under `runs/` so we can inspect the
 results before deciding what belongs in the final write-up.
 
 The quadratic-derived analysis fits each per-budget quadratic profile using all
@@ -467,7 +467,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".agents/logs/ch3_nopt_fit_comparison"),
+        default=Path("runs/ch3_nopt_fit_comparison"),
         help="Directory for exploratory comparison outputs.",
     )
     parser.add_argument(

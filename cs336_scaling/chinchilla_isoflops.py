@@ -58,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default=".agents/logs/chinchilla_isoflops",
+        default="runs/chinchilla_isoflops",
         help=(
             "Directory where plots and JSON/CSV summaries will be written. "
             "Use an artifacts/ path later once results are confirmed."

@@ -210,4 +210,4 @@ For a longer curl-based regression sweep, use:
 bash scripts/run_api_smoke_suite.sh
 ```
 
-The saved responses go under `.agents/logs/`, which makes it easier to compare repeated remote runs.
+The saved responses go under `runs/`, which makes it easier to compare repeated runs.
