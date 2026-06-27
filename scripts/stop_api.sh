@@ -8,7 +8,7 @@ Usage:
   ./scripts/stop_api.sh [port]
 
 Environment overrides:
-  CS336_LOG_DIR   Directory containing API pid files (default: /root/autodl-tmp/api-logs)
+  CS336_LOG_DIR   Directory containing API pid files (default: artifacts/api-logs)
 
 Examples:
   ./scripts/stop_api.sh
@@ -22,7 +22,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 PORT="${1:-${PORT:-8000}}"
-export CS336_LOG_DIR="${CS336_LOG_DIR:-/root/autodl-tmp/api-logs}"
+export CS336_LOG_DIR="${CS336_LOG_DIR:-artifacts/api-logs}"
 
 pid_path="${CS336_LOG_DIR}/api-${PORT}.pid"
 shutdown_url="http://127.0.0.1:${PORT}/__admin__/shutdown"

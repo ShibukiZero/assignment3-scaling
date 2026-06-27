@@ -160,3 +160,12 @@ cython_debug/
 #.idea/
 
 .ruff_cache/
+
+# Local API runtime state and data (not tied to any specific host)
+/artifacts/api/
+/artifacts/api-logs/
+/artifacts/experiments/**/service_logs/
+/artifacts/experiments/**/managed_run.log
+/data/fineweb-edu/
+/data/tokenizer/
+/data/tokids/

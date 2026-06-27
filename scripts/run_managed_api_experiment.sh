@@ -13,7 +13,7 @@ Legacy single-grid form (still supported):
 Environment overrides:
   API_STARTUP_TIMEOUT_S   Seconds to wait for the API to become ready (default: 300)
   API_READY_POLL_S        Seconds between readiness checks (default: 2)
-  MANAGED_POWEROFF_ON_SUCCESS  1 to power off the host after a successful run (default: 1)
+  MANAGED_POWEROFF_ON_SUCCESS  1 to power off the host after a successful run (default: 0)
   CS336_LOG_DIR           Directory for daemon logs and pid files
 
 Examples:
@@ -87,7 +87,7 @@ fi
 
 STARTUP_TIMEOUT_S="${API_STARTUP_TIMEOUT_S:-300}"
 READY_POLL_S="${API_READY_POLL_S:-2}"
-POWEROFF_ON_SUCCESS="${MANAGED_POWEROFF_ON_SUCCESS:-1}"
+POWEROFF_ON_SUCCESS="${MANAGED_POWEROFF_ON_SUCCESS:-0}"
 BASE_URL="http://127.0.0.1:${PORT}"
 
 for GRID_JSON in "${GRID_JSONS[@]}"; do

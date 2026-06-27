@@ -21,7 +21,7 @@ Environment overrides:
   CS336_MAX_STEPS_CAP          Optional step cap for smoke tests
   CS336_API_ACCEPT_ALL_KEYS    Accept any non-empty API key (default: 1)
   CS336_API_KEYS               Comma-separated allowlist when accept-all is disabled
-  CS336_LOG_DIR                Directory for daemon logs and pid files (default: /root/autodl-tmp/api-logs)
+  CS336_LOG_DIR                Directory for daemon logs and pid files (default: artifacts/api-logs)
 
 Examples:
   ./scripts/start_api.sh
@@ -60,9 +60,9 @@ if [[ -n "${DEVICE_ARG}" ]]; then
   esac
 fi
 
-export CS336_TRAIN_DATA_META_PATH="${CS336_TRAIN_DATA_META_PATH:-/root/autodl-tmp/tokids/fineweb_edu_full/train.meta.json}"
+export CS336_TRAIN_DATA_META_PATH="${CS336_TRAIN_DATA_META_PATH:-data/tokids/fineweb_edu_full/train.meta.json}"
 export CS336_VOCAB_SIZE="${CS336_VOCAB_SIZE:-32000}"
-export CS336_API_DB_PATH="${CS336_API_DB_PATH:-/root/autodl-tmp/api/api.db}"
+export CS336_API_DB_PATH="${CS336_API_DB_PATH:-artifacts/api/api.db}"
 export CS336_CONTEXT_LENGTH="${CS336_CONTEXT_LENGTH:-512}"
 if [[ -z "${CS336_DEVICE:-}" ]]; then
   export CS336_DEVICE="$(
@@ -78,7 +78,7 @@ if [[ -z "${CS336_ACTIVATION_CHECKPOINTING:-}" ]]; then
 fi
 export CS336_PRELOAD_DATASET="${CS336_PRELOAD_DATASET:-1}"
 export CS336_API_ACCEPT_ALL_KEYS="${CS336_API_ACCEPT_ALL_KEYS:-1}"
-export CS336_LOG_DIR="${CS336_LOG_DIR:-/root/autodl-tmp/api-logs}"
+export CS336_LOG_DIR="${CS336_LOG_DIR:-artifacts/api-logs}"
 
 if [[ ! -f "${CS336_TRAIN_DATA_META_PATH}" ]]; then
   echo "Missing tokenized training metadata: ${CS336_TRAIN_DATA_META_PATH}" >&2

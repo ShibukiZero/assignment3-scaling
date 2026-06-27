@@ -27,7 +27,8 @@ uv run which python
 
 This repository now includes a lightweight preprocessing pipeline for training a tokenizer and
 encoding a corpus into flat token-id binaries.
-The current examples in this section assume the FineWeb-Edu corpus stored on the remote server.
+The examples below use placeholder paths under `data/`; point them at wherever your corpus and
+tokenized outputs actually live (a large scratch disk on the training host is typical).
 
 A `2-4 GiB` tokenizer-training subset is a reasonable default for a `32K` byte-level BPE tokenizer.
 For large web corpora, it is often better to train on a reproducible random subset first instead of
@@ -49,8 +50,8 @@ For structured formats, the default text field is `text`.
 
 ```sh
 uv run python -m cs336_scaling.sample_corpus \
-  --input /root/autodl-tmp/fineweb-edu/sample \
-  --output /root/autodl-tmp/tokenizer/fineweb_edu_3g.jsonl \
+  --input data/fineweb-edu/sample \
+  --output data/tokenizer/fineweb_edu_3g.jsonl \
   --text-key text \
   --target-bytes 3GiB \
   --max-bytes 4GiB \
@@ -69,8 +70,8 @@ than the pure Python Assignment 1 implementation.
 
 ```sh
 uv run python -m cs336_scaling.train_tokenizer \
-  --input /root/autodl-tmp/tokenizer/fineweb_edu_3g.jsonl \
-  --output-dir /root/autodl-tmp/tokenizer/fineweb_edu_32k \
+  --input data/tokenizer/fineweb_edu_3g.jsonl \
+  --output-dir data/tokenizer/fineweb_edu_32k \
   --vocab-size 32000 \
   --text-key text \
   --special-tokens "<|endoftext|>"
@@ -88,9 +89,9 @@ training runs.
 
 ```sh
 uv run python -m cs336_scaling.encode_dataset \
-  --input /root/autodl-tmp/fineweb-edu \
-  --tokenizer /root/autodl-tmp/tokenizer/fineweb_edu_32k/tokenizer.json \
-  --output-prefix /root/autodl-tmp/tokids/fineweb_edu_full/train \
+  --input data/fineweb-edu \
+  --tokenizer data/tokenizer/fineweb_edu_32k/tokenizer.json \
+  --output-prefix data/tokids/fineweb_edu_full/train \
   --text-key text \
   --append-eod
 ```
@@ -201,7 +202,7 @@ Runtime defaults:
 - use all visible CUDA devices when `CS336_DEVICE=cuda`
 
 If you start the server with `--daemon`, logs and the PID file are written under
-`/root/autodl-tmp/api-logs/`.
+`artifacts/api-logs/` by default (override with `CS336_LOG_DIR`).
 
 For a longer curl-based regression sweep, use:
 
